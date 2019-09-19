@@ -1,0 +1,3005 @@
+<?php
+/**
+ * @file
+ * Module file for kued_program_guide_module.
+ */
+function kued_program_guide_init() {
+  $GLOBALS['conf']['cache'] = FALSE;
+}
+
+/**
+ * Implements hook_preprocess_html().
+ */
+function kued_program_guide_preprocess_html(&$vars) {
+  // We need the path to apply this in the correct location.
+  // But also to ensure we're build relevant descriptions and keywords.
+  $path = request_path();
+  $path_pieces = explode('/', $path);
+
+  // Figure out where we are and what to do with that info.
+  if($path_pieces[0] == 'whatson') {
+    if($path_pieces[1] == 'list' || $path_pieces[1] == 'guide') {
+        if(isset($path_pieces[2])) {
+          // Let's format the data from the URL
+          $station = $path_pieces[2];
+        } else {
+         $station = ''; 
+        }
+        // Make The station title look pretty
+        if(!$station || $station == 'kued') {
+          $station = 'KUED Channel 7';
+        } elseif($station == 'all-stations') {
+          $station = 'all KUED stations';
+        } elseif($station == 'world') {
+          $station = 'The World';
+        } elseif($station == 'kids24-7')  {
+          $station = 'KUED Kids 24/7';
+        } elseif($station == 'create')  {
+          $station = 'Create';
+        }
+
+        // Now deal with the date...
+        // Now check to see which program guide display we're looking at.
+        if($path_pieces[1] == 'list') {
+          if(empty($path_pieces[3])) {
+            $date = format_date(REQUEST_TIME, 'custom', 'l, M j, Y');
+          } else {
+            $date = format_date(strtotime($path_pieces[3]), 'custom', 'l, M j, Y');
+          }
+        } elseif($path_pieces[1] == 'guide') {
+          if(empty($path_pieces[3])) {
+            $date = REQUEST_TIME;
+            $date = format_date(REQUEST_TIME, 'custom', 'l, M j, Y - g:ia');
+          } else {
+            if(!empty($path_pieces[4])) {
+              $date = $path_pieces[3] . ' ' . str_replace(":", ".", $path_pieces[4]);
+            } else {
+              $date = $path_pieces[3];
+            }
+            $date = format_date(strtotime($date), 'custom', 'l, M j, Y - g:ia');
+          }
+        }
+
+        // Build the description and keywords
+        $description = 'KUED\'s TV Schedule. Currently displaying what\'s on ' . $station . ' for ' . $date;
+        $keywords = 'KUED Channel 7, PBS, Utah, ' . $station . ' Program Guide, On-air Schedule, TV Schedule, Showing ' . $date;
+        // Send this data back to the html head
+        $meta_description = array(
+                '#type' => 'html_tag',
+                '#tag' => 'meta',
+                '#attributes' => array(
+                    'name' => 'description',
+                    'content' =>  $description
+                )
+        );
+        $ogmeta_description = array(
+                '#type' => 'html_tag',
+                '#tag' => 'meta',
+                '#attributes' => array(
+                    'property' => 'og:description',
+                    'content' =>  $description
+                )
+        );
+        $meta_keywords = array(
+                '#type' => 'html_tag',
+                '#tag' => 'meta',
+                '#attributes' => array(
+                    'name' => 'keywords',
+                    'content' =>  $keywords
+                )
+        );
+      drupal_add_html_head( $meta_description, 'meta_description' );
+      drupal_add_html_head( $ogmeta_description, 'og_description' );
+      drupal_add_html_head( $meta_keywords, 'meta_keywords' );
+    }
+  }
+}
+
+/**
+ * Implements hook_help().
+ */
+function kued_program_guide_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#simple':
+      // Here is some help text for a custom page.
+      return t('Program Guide Help doesn\'t actually exist yet.');
+  }
+}
+
+/**
+ * Implements hook_permission().
+ */
+function kued_program_guide_permission() {
+  return array(
+    'access guide page' => array(
+      'title' => t('Access guide page'),
+      'description' => t('Allow users to access guide page'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function kued_program_guide_menu() {
+		$a = '';
+		$b = '';
+		$c = '';
+		$d = '';
+
+  // What's On guide menu items
+	// First is a redirect
+  $items['whatson'] = array(
+    'title' => 'What\'s On',
+    'page callback' => 'kued_program_guide_redirect',
+    'access callback' => TRUE,
+    'expanded' => TRUE,
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+	// Second is the default landing page
+  $items['whatson/guide'] = array(
+    'title' => 'TV Schedule Grid',
+    'page callback' => 'kued_program_guide_page',
+    'page arguments' => array($a, $b, $c, $d),
+    'access arguments' => array('access guide page'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+	// Third is the search results page
+  $items['whatson/guide/%/%/%/%'] = array(
+    //'title' => 'KUED\'s Program Guide | ' . $time_title_display . ' | Showing ' . $hours . ' hours on ' . strtoupper($station) . '',
+    'title' => 'TV Schedule Grid',
+    'page callback' => 'kued_program_guide_page',
+    'page arguments' => array(2, 3, 4, 5),
+    'access arguments' => array('access guide page'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  // List style display for the guide
+	// Second is the default landing page
+  $items['whatson/list'] = array(
+    'title' => 'TV Schedule List',
+    'page callback' => 'kued_program_guide_list_page',
+    'page arguments' => array($a, $b),
+    'access arguments' => array('access guide page'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+	// Third is the search results page
+  $items['whatson/list/%/%'] = array(
+    'title' => 'TV Schedule List',
+    'page callback' => 'kued_program_guide_list_page',
+    'page arguments' => array(2, 3),
+    'access arguments' => array('access guide page'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+
+/**
+ * kued_program_guide_redirect function.
+ */
+function kued_program_guide_redirect() {
+  drupal_goto("whatson/list");
+}
+
+
+//////////////////////////////////////////
+// Program Guide List View search form
+/**
+ * Implements hook_form().
+ */
+function kued_program_guide_list_search_form($form, &$form_state) {
+	// Get the defaults or current arguements with this function
+	$guide_form_defaults = kued_program_guide_default();
+  if($guide_form_defaults['station'] == 'all-stations') {
+    $guide_form_defaults['station'] = 'kued';
+  }
+
+	// Build the form
+  $form['details'] = array(
+    '#type' => 'fieldset',
+    '#attributes' => array('class' => array('whatson-guide-search-box whatson-guide-search-box-list')),
+    '#title' => t('Change date'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+		//'#prefix' => '<div class="whatson-guide-search-box">',
+		//'#suffix' => '</div>',
+  );
+
+/*
+// Keep this in case we need it later
+  $form['details']['date'] = array(
+		'#type' => 'select',
+		//'#title' => t('Date'),
+		'#default_value' => $guide_form_defaults['date'],
+		'#options' => kued_program_guide_select_date(),
+  );
+
+  $form['details']['time'] = array(
+		'#type' => 'select',
+		//'#title' => t('Start Time'),
+		'#default_value' => $guide_form_defaults['time'],
+		'#options' => kued_program_guide_select_time(),
+  );
+*/
+
+  // For Popup calendar:
+  $default_date = $guide_form_defaults['date'];
+  $time_convert = strtotime($default_date);
+  $default_date = date('Y-m-d', $time_convert);
+  // Date format to expect (this is modified in the submit phase):
+  $format = 'Y-m-d';
+ 
+  $form['details']['calendar'] = array(
+     '#type' => 'date_popup',
+     '#default_value' => $default_date, 
+     '#date_format' => $format,
+     '#date_year_range' => '-0:+1',
+     '#attributes' => array('onChange' => 'document.getElementById("kued-program-guide-list-search-form").submit();'),
+  );
+  $form['details']['station'] = array(
+		'#type' => 'hidden',
+		'#default_value' => $guide_form_defaults['station'],
+  );
+	$form['details']['submit'] = array(
+		'#type' => 'submit',
+		'#value' => t('Submit'),
+	);
+  return $form;
+}
+
+/**
+ * Implements form_submit().
+ */
+function kued_program_guide_list_search_form_submit($form, &$form_state) {
+  $station = '';
+  $day = '';
+  $time = '';
+  $duration = '';
+  if(isset($form_state['values']['station'])) {
+	  $station = $form_state['values']['station'];
+  }
+  if(isset($form_state['values']['date'])) {
+  	$day = $form_state['values']['date'];
+  }
+  /*
+  if(isset($form_state['values']['time'])) {
+	  $time = $form_state['values']['time'];
+  }
+  if(isset($form_state['values']['duration'])) {
+  	$duration = $form_state['values']['duration'];
+  }
+  */
+
+  // If we received input from the popup calendar fix it here:
+  if($form_state['values']['calendar']) {
+    $date = strtotime($form_state['values']['calendar']);
+    $day = date('Y-m-d', $date);
+    //$time = date('g.ia', $date);
+  }
+
+	// Clean URL Argument style redirect here
+	drupal_goto("whatson/list/".$station."/".$day);
+}
+
+
+
+/////////////////////
+// Old search form
+/**
+ * Implements hook_form().
+ */
+function kued_program_guide_search_form($form, &$form_state) {
+	// Get the defaults or current arguements with this function
+	$guide_form_defaults = kued_program_guide_default();
+
+	// Build the form
+  $form['details'] = array(
+    '#type' => 'fieldset',
+    '#attributes' => array('class' => array('whatson-guide-search-box')),
+    '#title' => t('Search the program guide by date'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+		//'#prefix' => '<div class="whatson-guide-search-box">',
+		//'#suffix' => '</div>',
+  );
+
+/*
+// Keep this in case we need it later
+  $form['details']['date'] = array(
+		'#type' => 'select',
+		//'#title' => t('Date'),
+		'#default_value' => $guide_form_defaults['date'],
+		'#options' => kued_program_guide_select_date(),
+  );
+
+  $form['details']['time'] = array(
+		'#type' => 'select',
+		//'#title' => t('Start Time'),
+		'#default_value' => $guide_form_defaults['time'],
+		'#options' => kued_program_guide_select_time(),
+  );
+*/
+
+  // For Popup calendar:
+  $default_date = $guide_form_defaults['date'] . ' ' . $guide_form_defaults['time'];
+  $time_convert = strtotime($default_date);
+  $default_date = date('Y-m-d H:i', $time_convert);
+  // Date format to expect (this is modified in the submit phase):
+  $format = 'Y-m-d g:ia';
+ 
+  $form['details']['calendar'] = array(
+     '#type' => 'date_popup',
+     '#default_value' => $default_date, 
+     '#date_format' => $format,
+     //'#date_label_position' => 'within', // See other available attributes and what they do in date_api_elements.inc
+     //'#date_timezone' => 'America/Denver', // Optional, if your date has a timezone other than the site timezone.
+     '#date_increment' => 30,
+     '#date_year_range' => '-0:+1',
+  );
+  $form['details']['station'] = array(
+		'#type' => 'select',
+		//'#title' => t('Station'),
+		'#default_value' => $guide_form_defaults['station'],
+		'#options' => array(
+			'all-stations' => 'All Stations',
+			'kued' => 'KUED',
+			'world' => 'The World',
+			'kids24-7' => 'Kids 24/7',
+			'create' => 'Create',
+		),
+  );
+  $form['details']['duration'] = array(
+		'#type' => 'select',
+		//'#title' => t('Duration'),
+		'#default_value' => (int)$guide_form_defaults['duration'],
+		'#options' => kued_program_guide_select_duration(),
+  );
+	$form['details']['submit'] = array(
+		'#type' => 'submit',
+		'#value' => t('Submit'),
+	);
+  return $form;
+}
+
+/**
+ * Implements form_submit().
+ */
+function kued_program_guide_search_form_submit($form, &$form_state) {
+  $station = '';
+  $day = '';
+  $time = '';
+  $duration = '';
+  
+  if(isset($form_state['values']['station'])) {
+	  $station = $form_state['values']['station'];
+  }
+  if(isset($form_state['values']['date'])) {
+  	$day = $form_state['values']['date'];
+  }
+  if(isset($form_state['values']['time'])) {
+	  $time = $form_state['values']['time'];
+  }
+  if(isset($form_state['values']['duration'])) {
+  	$duration = $form_state['values']['duration'];
+  }
+  // If we received input from the popup calendar fix it here:
+  if($form_state['values']['calendar']) {
+    $date = strtotime($form_state['values']['calendar']);
+    $day = date('Y-m-d', $date);
+    $time = date('g.ia', $date);
+  }
+	// Clean URL Argument style redirect here
+	drupal_goto("whatson/guide/".$station."/".$day."/".$time."/".$duration);
+}
+
+/**
+ * Implements hook_theme().
+ */
+function kued_program_guide_theme() {
+  $module_path = drupal_get_path('module', 'kued_program_guide');
+  $base = array(
+    'path' => $module_path . "/theme",   
+  );
+
+  $items = array(
+    'kued_program_guide_title'  => array(
+			'render element' => 'element',
+      'template' => 'kued_program_guide_title',
+    ),
+    'kued_program_guide_hours'  => array(
+			'render element' => 'element',
+      'template' => 'kued_program_guide_hours',
+    ),
+    'kued_program_guide_tabs'  => array(
+			'render element' => 'element',
+      'template' => 'kued_program_guide_tabs',
+    ),
+    'kued_program_guide_nodes'  => array(
+			'render element' => 'element',
+      'template' => 'kued_program_guide_nodes',
+    ),
+    'kued_program_guide_upcoming'  => array(
+			'render element' => 'element',
+      'template' => 'kued_program_guide_upcoming',
+    ),
+
+    'kued_program_guide_big_block_theme' => $base + array(
+    	'template' => 'kued-program-guide-big-block--block',
+    	'variables' => array('items' => NULL,),
+    ),
+
+  ); 
+  return $items;
+}
+
+/**
+ * This is the function that collects and formats the stuff for the selection items
+ */
+function kued_program_guide_items_list($station, $day, $style) {
+  //Get defaults if needed
+  $guide_form_defaults = kued_program_guide_default();
+	$day = $guide_form_defaults['date'];
+
+	//Format the start and end times
+	$current_time = strtotime($day);
+  $today = strtotime('now');
+
+  // Check to see if the user looking at today,
+  // Adjust button title appropriately.
+  $today_doy = date('z-y', $today);
+  $current_doy = date('z-y', $current_time);
+  if($today_doy == $current_doy) {
+    $previous = 'Yesterday';
+    $next = 'Tomorrow';
+  } else {
+    $previous = 'Previous Day';
+    $next = 'Next Day';
+  }
+
+  // Now build the navigation links
+  // Yesterday links
+	$yesterday = $current_time - 86400;
+	$yesterday_date = date('Y-m-d', $yesterday);
+	$yesterday_link = "whatson/list/" . $station . "/" . $yesterday_date;
+  // Tomorrow links
+	$tomorrow = $current_time + 86400;
+	$tomorrow_date = date('Y-m-d', $tomorrow);
+	$tomorrow_link = "whatson/list/" . $station . "/" . $tomorrow_date;
+
+	// Current settings display string
+	$current_display = date('l, F jS, Y', $current_time);
+
+  // And assemble the list of items
+  $list[] = t('<div class="whatson-guide-search-box-showing"><span>Showing:</span> @v</div>', array('@v' => $current_display));
+	$list[] = l(t('&laquo;&laquo; @p', array('@p' => $previous)), $yesterday_link, array('attributes' => array('class' => array('whats-on-guide-navigation-link previous')), 'html' => TRUE));
+	$list[] = l(t('@n  &raquo;&raquo;', array('@n' => $next)), $tomorrow_link, array('attributes' => array('class' => array('whats-on-guide-navigation-link next')), 'html' => TRUE));
+
+  if($style == 1) {
+    $prefix = '<div class="whatson-guide-search-box-legend top">';
+  } else {
+    $prefix = '<div class="whatson-guide-search-box-legend bottom">';
+  }
+
+	// Prepare the array to show the date results
+  $items = array(
+		'#cache' => strtotime('now - 100000'),
+    '#theme' => 'item_list',
+    '#items' => $list,
+    '#prefix' => $prefix,
+    '#suffix' => '</div>',
+  );
+
+	// Put the pieces together and send them on
+	$content['items'] = $items;
+	return $content;
+}
+
+/**
+ * This is the function that collects and formats the stuff for the selection items
+ */
+function kued_program_guide_items() {
+  //Get defaults if needed
+  $guide_form_defaults = kued_program_guide_default();
+    $time = $guide_form_defaults['time'];
+    $day = $guide_form_defaults['date'];
+    $hours = (int)$guide_form_defaults['duration'];
+    $station = $guide_form_defaults['station'];
+
+	//Format the start and end times
+	$start_time = strtotime("$day " . "$time");
+	$duration = $hours * 3600;
+	$end_time = $start_time + $duration;
+
+	// Build navigation buttons
+	$current_time = strtotime("$day " . "$time"); // Time to unix
+
+	$earlier = $current_time - $duration;
+	$earlier_time = date('g.ia', $earlier);
+	$earlier_date = date('Y-m-d', $earlier);
+	$earlier_link = "whatson/guide/" . $station . "/" . $earlier_date . "/" . $earlier_time . "/" . $hours;
+
+	$later = $current_time + $duration;
+	$later_time = date('g.ia', $later);
+	$later_date = date('Y-m-d', $later);
+	$later_link = "whatson/guide/" . $station . "/" . $later_date . "/" . $later_time . "/" . $hours;
+
+	$yesterday = $current_time - 86400;
+	$yesterday_time = date('g.ia', $yesterday);
+	$yesterday_date = date('Y-m-d', $yesterday);
+	$yesterday_link = "whatson/guide/" . $station . "/" . $yesterday_date . "/" . $yesterday_time . "/" . $hours;
+
+	$tomorrow = $current_time + 86400;
+	$tomorrow_time = date('g.ia', $tomorrow);
+	$tomorrow_date = date('Y-m-d', $tomorrow);
+	$tomorrow_link = "whatson/guide/" . $station . "/" . $tomorrow_date . "/" . $tomorrow_time . "/" . $hours;
+
+	// Primetime Link
+	$prime_date = date('Y-m-d', strtotime("today"));
+	$prime_time = "7.00pm";
+	$prime_link = "whatson/guide/" . $station . "/" . $prime_date . "/" . $prime_time . "/" . $hours;
+	//$primetime_link = "whatson/guide/all-stations/2013/7.00pm/3";
+
+	// Current settings display string
+	$start_time_display = date('g:i\a', $start_time);
+	$end_time_display = date('g:i\a', $end_time);
+	$current_display = date('l, F jS \f\r\o\m ' . $start_time_display .' \t\o ' .  $end_time_display, $current_time);
+
+	// The navigation links
+	$list[] = l(t('Tonight in Primetime'), "$prime_link", array('attributes' => array('class' => array('whats-on-guide-navigation-link', 'primetime')), 'html' => 'TRUE'));
+	$list[] = l(t('&laquo;&laquo; Previous Day'), "$yesterday_link", array('attributes' => array('class' => array('whats-on-guide-navigation-link')), 'html' => 'TRUE'));
+	$list[] = l(t('Next Day  &raquo;&raquo;'), "$tomorrow_link", array('attributes' => array('class' => array('whats-on-guide-navigation-link')), 'html' => TRUE));
+	$list[] = l(t('&laquo; Earlier'), "$earlier_link", array('attributes' => array('class' => array('whats-on-guide-navigation-link')), 'html' => TRUE));
+	$list[] = l(t('Later  &raquo;'), "$later_link", array('attributes' => array('class' => array('whats-on-guide-navigation-link')), 'html' => TRUE));
+
+	// Prepare the array to show the date results
+  $items = array(
+		'#cache' => strtotime('now - 100000'),
+    '#theme' => 'item_list',  // The theme function to apply to the #items
+    '#items' => $list,  // The list itself.
+    '#title' => t('<span class="whatson-guide-search-box-showing"><span>Showing:</span> @v on @s <span>| Time Span:</span> @h hours', array('@v' => $current_display, '@h' => $hours, '@s' => kued_program_guide_station_format($station))),
+    '#prefix' => '<div class="whatson-guide-search-box-legend">',
+    '#suffix' => '</div>',
+  );
+
+	// Put the pieces together
+	$content['items'] = $items;
+
+	return $content;
+}
+
+////////////////////////////////////////////////
+// NEW List-style display style for the guide //
+////////////////////////////////////////////////
+/**
+ * This is the function that collects and formats the stuff for the selection items
+ */
+function kued_program_guide_inpage_items_list($station, $current_time) {
+  if(!$current_time) {
+    $current_time = REQUEST_TIME;
+  } else {
+   $current_time = strtotime($current_time); 
+  }
+  $date = date('Y-m-d', $current_time);
+
+  // After the user scrolls down we need to remind them which date they're looking at
+  $showing_extra = '<div class="today-extra"><span>Showing:</span> ' . date('l, F jS, Y', $current_time) . '</div>';
+	$list[] = $showing_extra;
+
+  // Build in-page navigation links
+	$list[] = l(t('Primetime'), '', array('attributes' => array('class' => array('whats-on-guide-navigation-link-inpage primetime')), 'fragment' => 'primetime', 'external' => TRUE));
+	$list[] = l(t('Return to top'), '#page', array('attributes' => array('class' => array('whats-on-guide-navigation-link-inpage return-to-top')),'fragment' => 'whatson-guide-display-list', 'external' => TRUE));
+
+  // We need to manage the 'jump to now' link
+  $today_check_one = date('z', $current_time);  
+  $today_check_two = date('z', strtotime('today'));
+  if($today_check_one == $today_check_two) {
+	  //$list[] = l(t('Jump to now'), '', array('attributes' => array('class' => array('whats-on-guide-navigation-link-inpage jump-to-now')), 'fragment' => 'now', 'external' => TRUE));    
+  } else {
+  	// Jump to Today Link
+	  $today_link = "whatson/list";
+	  $list[] = l(t('Go to Today'), $today_link, array('attributes' => array('class' => array('whats-on-guide-navigation-link-inpage jump-to-today')), 'html' => TRUE));
+  }
+
+  // Format the station title display
+  $station_title = kued_program_guide_station_format($station);
+  if($station == 'kued') {
+    $station_info = $station_title . ' on Comcast 7 and 658 in HD';  
+  } elseif($station == 'world') {
+    $station_info = '<a href="http://worldchannel.org" target="_blank" title="' . $station_title  . ' 7.2 on Comcast 390">' . $station_title  . ' 7.2 on Comcast 390</a>';
+  } elseif($station == 'kids24-7') {
+    $station_info = '<a href="/kids" target="_blank" title="KUED Kids 24/7 7.3 on Comcast 391">' . $station_title  . ' 7.3 on Comcast 391</a>';
+  } elseif($station == 'create') {
+    $station_info = '<a href="https://createtv.com/" target="_blank" title="KUED Create 7.4 on Comcast 393">' . $station_title  . ' 7.4 on Comcast 393</a>';
+  } else {
+    $station_info = '';
+  }
+
+	$list[] = $station_info;
+
+	// Prepare the array to show the date results
+  $items = array(
+		'#cache' => 8600000,
+    '#theme' => 'item_list',
+    '#items' => $list,
+    '#prefix' => '<div class="whatson-guide-search-box-links-inpage">',
+    '#suffix' => '</div>',
+  );
+
+	// Put the pieces together
+	$content['items'] = $items;
+	return $content;
+}
+
+
+/**
+ * Function to select and display the Program Guide list
+ */
+function kued_program_guide_list_page($station, $day, $time = '12.00am', $hours = '24') {
+  $guide_form_defaults = kued_program_guide_default();
+    $day = $guide_form_defaults['date'];
+    $time = '12.00am';
+	  $hours = '24';
+	  $station = $guide_form_defaults['station'];
+	  $extra_time = $guide_form_defaults['extra_time'];
+			
+  $show_all = 0;
+	if($station == 'all-stations' || !strlen($station)) {
+	  $station = 'kued';
+	}
+  /*
+	drupal_set_message(t('station: %v', array('%v' => $station)));
+	drupal_set_message(t('day: %v', array('%v' => $day)));
+	drupal_set_message(t('time: %v', array('%v' => $time)));
+	drupal_set_message(t('hours: %v', array('%v' => $hours)));
+  */
+
+	$time_title_display_source = strtotime("$day " . "$time");
+	$time_title_display = date('g:ia \o\n D, M jS', $time_title_display_source);
+	$time_title_display_alt = date('D, M jS', $time_title_display_source);
+
+	//Now that we have the info we can set the page title
+
+	if(strlen(arg(2)) && !strlen(arg(3)) && !strlen(arg(4)) && !strlen(arg(5))) {
+	  drupal_set_title(t('TV Schedule list showing ' . kued_program_guide_station_format($station)));
+	} elseif(strlen(arg(2)) && strlen(arg(3))) {
+	  drupal_set_title(t('TV Schedule list showing ' . $time_title_display_alt. ' on ' . kued_program_guide_station_format($station)));
+	}
+
+	//Format the start and end times
+	$start_time = strtotime("$day " . "$time");
+	$duration = $hours * 3600;
+	$end_time = $start_time + $duration;
+	$start_time_extra = $start_time - $extra_time;
+	$end_time_extra = $end_time + $extra_time;
+
+  $items = array();
+  $items['switch-link'] = kued_program_guide_switch_link();
+
+  $items['tabs'] = kued_program_guide_tabs($station, arg(3));
+  $items['links-top'] = kued_program_guide_items_list($station, arg(3), 1);
+	$items['form'] = drupal_get_form('kued_program_guide_list_search_form');
+  $items['inpage-links'] = kued_program_guide_inpage_items_list($station, arg(3));
+  //$items['hours'] = kued_program_guide_show_hours($station, $start_time, $end_time);
+
+  $block = block_load('kued_program_guide', 'kued_program_guide_list_view');
+
+  $render_array = _block_get_renderable_array(_block_render_blocks(array($block)));
+  $output = render($render_array);
+  $items[$station] = array(
+      '#items' => array($output),
+      '#theme' => array('item_list'),
+      '#attributes' => array(
+      'id' => 'program-guide-list',
+      'class' => 'program-guide-list program-guide-list-' . $station,
+    ),
+  );
+
+  $items['links-bottom'] = kued_program_guide_items_list($station, arg(3), 2);
+  $items['bottom-links'] = kued_program_guide_return_to_top();
+
+	$items['#prefix'] = '<div id="whatson-guide-display-list" class="whatson-guide-shows-display-list">';
+	$items['#suffix'] = '</div>';
+
+  //$items[$station] = kued_program_guide_list_view($station, $start_time, $end_time, $start_time_extra, $end_time_extra, 5);
+	//$items['station-'.$station] = kued_program_guide_show_station($station, $start_time, $end_time);
+	//$items[$station] = kued_program_guide_display($station, $start_time, $end_time, $start_time_extra, $end_time_extra, 5);
+
+ return $items;
+}
+
+/**
+ * This displays a 'return to the old guide' link
+ */
+function kued_program_guide_switch_link() {
+  // Get the station
+  if(!arg(2)) {
+    $station = 'kued';
+  } else {
+    $station = arg(2);
+  }
+  // Get the date
+  if(!arg(3)) {
+    $date = date('Y-m-d', strtotime('now'));
+  } else {
+    $date = arg(3);
+  }
+  // Make the links
+  $horizontal = '/whatson/guide/all-stations/' . $date;
+  $vertical = '/whatson/list/all-stations/' . $date;
+  $vertical_active = '';
+  $horizontal_active = '';
+  // Create the message
+  if(arg(1) == 'list') {
+    $vertical_active = ' active';
+  } elseif(arg(1) == 'guide') {
+    $horizontal_active = ' active';
+  }
+  
+  $message = t("Display: !vertical | !horizontal", array('!vertical' => l(t('List'), "$vertical", array('attributes' => array('class' => array('vertical-guide-link' . $vertical_active)))), '!horizontal' => l(t('Grid'), "$horizontal", array('attributes' => array('class' => array('horizontal-guide-link' . $horizontal_active))))));
+
+ 	// Prepare the array to show the date results
+  $items = array(
+		'#cache' => 8600000,
+    '#theme' => 'item_list',
+    '#items' => array($message),
+    '#prefix' => '<div class="whatson-guide-display-horizontal-guide-link">',
+    '#suffix' => '</div>',
+  );
+
+	// Put the pieces together
+	$content['items'] = $items;
+	return $content; 
+}
+
+/**
+ * This displays a simple 'returnt to top' button
+ * at the bottom of the guide.
+ */
+function kued_program_guide_return_to_top() {
+  $link = l(t('top of page'), '', array('attributes' => array('class' => array('return-to-top')), 'fragment' => 'page', 'external' => TRUE));
+ 	// Prepare the array to show the date results
+  $items = array(
+		'#cache' => 8600000,
+    '#theme' => 'item_list',
+    '#items' => array($link),
+    '#prefix' => '<div class="return-links">',
+    '#suffix' => '</div>',
+  );
+
+	// Put the pieces together
+	$content['items'] = $items;
+	return $content; 
+}
+
+
+/**
+ * This is the page display for the program guide.
+ */
+function kued_program_guide_page($station, $day, $time, $hours) {
+/*
+	// Add the tooltip Library
+	//drupal_add_library('jquery_plugin', 'tooltip');
+
+	// Plug in KUED's custom Javascript
+	if ($path = libraries_get_path('kued')) {
+		//drupal_add_js($path . '/jquery.tools.min.js');
+		//drupal_add_js($path . '/kued.js');
+	}
+//dpm(drupal_get_library('jquery_plugin'));
+*/
+
+	if($station == 'all-stations' || !strlen($station)) {
+	  $show_all = 1;
+	} else {
+	  $show_all = 0;
+	}
+
+	// Get the defaults or URL arguments
+	if(!strlen($station)) {
+		$guide_form_defaults = kued_program_guide_default();
+			$time = $guide_form_defaults['time'];
+			$day = $guide_form_defaults['date'];
+			$hours = (int)$guide_form_defaults['duration'];
+			$station = $guide_form_defaults['station'];
+			$extra_time = $guide_form_defaults['extra_time'];
+			/*
+			drupal_set_message(t('station: %v', array('%v' => $station)));
+			drupal_set_message(t('day: %v', array('%v' => $day)));
+			drupal_set_message(t('time: %v', array('%v' => $time)));
+			drupal_set_message(t('hours: %v', array('%v' => $hours)));
+			*/
+		} else {
+			$guide_form_defaults = kued_program_guide_default();
+			$extra_time = $guide_form_defaults['extra_time'];	
+		}
+
+	$time_title_display_source = strtotime("$day " . "$time");
+	$time_title_display = date('g:ia \o\n D, M jS', $time_title_display_source);
+	$time_title_display_alt = date('D, M jS', $time_title_display_source);
+
+	//Now that we have the info we can set the page title
+	if(strlen(arg(2)) && !strlen(arg(3)) && !strlen(arg(4)) && !strlen(arg(5))) {
+	  drupal_set_title(t('TV Schedule grid showing ' . kued_program_guide_station_format($station)));
+	} elseif(strlen(arg(2)) && strlen(arg(3))) {
+	  drupal_set_title(t('TV Schedule grid showing ' . kued_program_guide_station_format($station) . ' ' . $time_title_display));
+	}
+
+	//Format the start and end times
+	$start_time = strtotime("$day " . "$time");
+	$duration = (int)$hours * 3600;
+	$end_time = $start_time + $duration;
+	$start_time_extra = $start_time - $extra_time;
+	$end_time_extra = $end_time + $extra_time;
+
+  $items = array();
+  $items['switch-link'] = kued_program_guide_switch_link();
+	$items['form'] = drupal_get_form('kued_program_guide_search_form');
+  $items['links'] = kued_program_guide_items();
+  $items['hours'] = kued_program_guide_show_hours($station, $start_time, $end_time);
+
+	$items['#prefix'] = '<div id="whatson-guide-display" class="whatson-guide-shows-display">';
+	$items['#suffix'] = '</div>';
+
+	if($show_all == 0) {
+		$items['station-'.$station] = kued_program_guide_show_station($station, $start_time, $end_time);
+		$items[$station] = kued_program_guide_display($station, $start_time, $end_time, $start_time_extra, $end_time_extra, 0);
+	} elseif($show_all == 1) {
+		$items['station-kued'] = kued_program_guide_show_station('kued', $start_time, $end_time);
+		$items['kued'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 0);
+		
+		$items['station-world'] = kued_program_guide_show_station('world', $start_time, $end_time);
+		$items['world'] = kued_program_guide_display('world', $start_time, $end_time, $start_time_extra, $end_time_extra, 0);
+
+		$items['station-kids'] = kued_program_guide_show_station('kids24-7', $start_time, $end_time);
+		$items['kids'] = kued_program_guide_display('kids24-7', $start_time, $end_time, $start_time_extra, $end_time_extra, 0);
+
+		$items['station-create'] = kued_program_guide_show_station('create', $start_time, $end_time);
+		$items['create'] = kued_program_guide_display('create', $start_time, $end_time, $start_time_extra, $end_time_extra, 0);
+	}
+  $items['bottom-links'] = kued_program_guide_return_to_top();
+
+	//drupal_set_message('<pre>'.print_r($items, TRUE).'</pre>');
+
+ return $items;
+}
+
+
+/**
+ * Build the hours stations select
+ */
+function kued_program_guide_show_station($station, $start_time, $end_time) {
+$station = "$station";
+	// Build the render array and send it to the template
+  $list = array(
+    'title' => t($station),
+		'#theme' => 'kued_program_guide_title',
+    '#prefix' => '<div id="whatson-guide-title-box-' . t($station) . '" class="whatson-guide-title-box">',
+    '#suffix' => '</div>',
+  );
+return $list;
+}
+
+/**
+ * Impliments hook_preprocess();
+ */
+function template_preprocess_kued_program_guide_title(&$vars) {
+	// Move items to the template
+	$vars['title_display'] = kued_program_guide_station_format($vars['element']['title']);
+	// Add extra details based on the channel to display
+	if($vars['title_display'] == 'KUED') {
+		$vars['title_display_channel'] = '7.1';
+		$vars['title_display_extra'] = 'Comcast 7 and 658 in HD';
+    $vars['title_display_link_open'] = '';
+   $vars['title_display_link_close'] = '';
+	} elseif ($vars['title_display'] == 'The World') {
+		$vars['title_display_channel'] = '7.2';
+		$vars['title_display_extra'] = 'Comcast 390';
+    $vars['title_display_link_open'] = '<a href="http://worldchannel.org" target="_blank" title="The World">';
+    $vars['title_display_link_close'] = '</a>';
+	} elseif ($vars['title_display'] == 'Kids 24/7') {
+		$vars['title_display_channel'] = '7.3';
+		$vars['title_display_extra'] = 'Comcast 391';
+    $vars['title_display_link_open'] = '<a href="/kids" target="_blank" title="KUED Kids 24/7 7.3 on Comcast 391">';
+    $vars['title_display_link_close'] = '</a>';
+	} elseif ($vars['title_display'] == 'Create') {
+		$vars['title_display_channel'] = '7.4';
+		$vars['title_display_extra'] = 'Comcast 393';
+    $vars['title_display_link_open'] = '<a href="https://createtv.com" target="_blank" title="KUED Create 7.4 on Comcast 393">';
+    $vars['title_display_link_close'] = '</a>';
+	}
+	$vars['title'] = $vars['element']['title'];
+}
+
+/**
+ * Build fake tabs for each station
+ */
+function kued_program_guide_tabs($station, $date) {
+  if(!$date) {
+    $date = date('Y-m-d', REQUEST_TIME);
+    $date = '';
+  }
+  $items = array(
+    'kued' => 'KUED',
+    'world' => 'The World',
+    'kids24-7' => 'Kids 24/7',
+    'create' => 'Create',
+  );
+
+  // Build the render array and send it to the template
+  $list = array(
+    '#items' => $items,
+    'station' => $station,
+    'date' => $date,
+    '#theme' => 'kued_program_guide_tabs',
+    '#prefix' => '<div id="whatson-guide-tab-box">',
+    '#suffix' => '</div>',
+  );
+  return $list;
+}
+
+/**
+ * Impliments hook_preprocess();
+ */
+function template_preprocess_kued_program_guide_tabs(&$vars) {
+  $vars['items'] = $vars['element']['#items'];
+  $vars['station'] = $vars['element']['station'];
+  $vars['date'] = $vars['element']['date'];
+}
+
+/**
+ * Build the hours display div
+ */
+function kued_program_guide_show_hours($station, $start_time, $end_time) {
+	// Get the defaults
+	$guide_form_defaults = kued_program_guide_default();
+		$time = $guide_form_defaults['time'];
+		$day = $guide_form_defaults['date'];
+		$hours = (int)$guide_form_defaults['duration'];
+		$station = $guide_form_defaults['station'];
+		$full_width = $guide_form_defaults['full_width'];
+		$table_width = $guide_form_defaults['table_width'];
+
+	// Build hours block
+	$hours_blocks = $hours * 2;
+	$start_time = strtotime($day . " " . $time);
+	$duration = $end_time - $start_time;
+	$program_start_time = 0;
+	
+	// Display the blocks using the same math as the programs
+	$i = 0;
+	while($i < $hours_blocks) {
+		// Show the time blocks
+		$items[] = t(date('g:i A', $start_time));
+		$start_time = $start_time + 1800;
+		// Position the time blocks
+		$start_position[] = round($program_start_time / $duration, 2) * 100;
+		$program_start_time = $program_start_time + 1800;
+		$i++;
+	}
+
+	if(!empty($items)) {
+		// Build the render array and send it to the template
+		$list = array(
+			'#items' => $items,
+			'station' => $station,
+			'full_width' => $full_width,
+			'start_position' => $start_position,
+			'#theme' => 'kued_program_guide_hours',
+			'#prefix' => '<div id="whatson-guide-hours-box">',
+			'#suffix' => '</div>',
+		);
+	return $list;
+	}
+}
+
+
+/**
+ * Impliments hook_preprocess();
+ */
+function template_preprocess_kued_program_guide_hours(&$vars) {
+	// Move the times into an array	
+	$vars['hour_block'] = array();
+	$time_block = $vars['element']['#items'];
+		foreach($time_block as $value) {
+		$vars['time_block'] = $vars['element']['#items'];
+		}
+	// Do the math on the cell width
+	$full_width = $vars['element']['full_width'];
+	$cells = count($time_block); // Count the number of cells
+	// Get the cell width - becomes a hard-coded CSS width
+	$vars['cell_width'] = round(100 / $cells);
+	$vars['start_position'] = $vars['element']['start_position'];
+}
+
+
+////////////////////////////////////////////////////////////////////////
+
+
+
+/**
+ * Implements hook_block_info().
+ */
+function kued_program_guide_block_info() {
+  $blocks['kued_program_guide_search'] = array(
+    'info' => t('KUED Program Schedule Search'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  $blocks['kued_program_guide_kued_box'] = array(
+    'info' => t('What\'s On Now Content - KUED'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  $blocks['kued_program_guide_world_box'] = array(
+    'info' => t('What\'s On Now Content - The World'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+  $blocks['kued_program_guide_kids247_box'] = array(
+    'info' => t('What\'s On Now Content - Kids 24/7'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+  $blocks['kued_program_guide_create_box'] = array(
+    'info' => t('What\'s On Now Content - Create'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+
+  $blocks['kued_program_guide_menu_kued'] = array(
+    'info' => t('What\'s On - Tonight in Primetime - KUED'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+  $blocks['kued_program_guide_menu_world'] = array(
+    'info' => t('What\'s On - Tonight in Primetime - The World'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+  $blocks['kued_program_guide_menu_kids247'] = array(
+    'info' => t('What\'s On - Tonight in Primetime - Kids 24/7'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+  $blocks['kued_program_guide_menu_create'] = array(
+    'info' => t('What\'s On - Tonight in Primetime - Create'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+
+  $blocks['kued_program_guide_card_kued'] = array(
+    'info' => t('Card - Tonight in Primetime - KUED'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+  $blocks['kued_program_guide_card_world'] = array(
+    'info' => t('Card - Tonight in Primetime - The World'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+  $blocks['kued_program_guide_card_kids247'] = array(
+    'info' => t('Card - Tonight in Primetime - Kids 24/7'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+  $blocks['kued_program_guide_card_create'] = array(
+    'info' => t('Card - Tonight in Primetime - Create'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+
+
+  $blocks['kued_program_guide_big_box'] = array(
+    'info' => t('Front Page Big Schedule Block'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+
+
+  $blocks['kued_program_guide_now_kued'] = array(
+    'info' => t('Card - On Now - KUED'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  $blocks['kued_program_guide_now_world'] = array(
+    'info' => t('Card - On Now - The World'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  $blocks['kued_program_guide_now_kids247'] = array(
+    'info' => t('Card - On Now - Kids 24/7'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  $blocks['kued_program_guide_now_create'] = array(
+    'info' => t('Card - On Now - Create'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+
+  $blocks['kued_program_guide_kids247_full'] = array(
+    'info' => t('Kids 24/7 Schedule - Full'),
+    //'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+
+  $blocks['kued_program_guide_kids247_now'] = array(
+    'info' => t('Kids 24/7 Schedule - On Now - KUED'),
+    //'cache' => DRUPAL_NO_CACHE,
+  );
+  $blocks['kued_program_guide_kids_now'] = array(
+    'info' => t('Kids Schedule - On Now - KUED'),
+    //'cache' => DRUPAL_NO_CACHE,
+  );
+  $blocks['kued_program_guide_kids_full'] = array(
+    'info' => t('Kids Schedule - Full - KUED'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+  $blocks['kued_program_guide_kids_saturday'] = array(
+    'info' => t('Kids Schedule - Saturday - KUED'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+  $blocks['kued_program_guide_kids_sunday'] = array(
+    'info' => t('Kids Schedule - Sunday - KUED'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+
+  $blocks['kued_program_guide_list_view'] = array(
+    'info' => t('KUED Program Guide Full List'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+
+  $blocks['kued_program_guide_local'] = array(
+    'info' => t('Upcoming Local Productions'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+  $blocks['kued_program_guide_local_full'] = array(
+    'info' => t('Upcoming Local Productions - Full List'),
+    'cache' => DRUPAL_CACHE_CUSTOM,
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function kued_program_guide_block_view($delta='') {
+$block = array();
+  switch($delta) {
+
+    // Search box for guide page navigation
+    case 'kued_program_guide_search':
+      $block['subject'] = null;
+      break;
+
+    // Program Guides:::::::::::
+    // Main List view (works for all channels)
+    case 'kued_program_guide_list_view':
+      $block['subject'] = t('KUED Program Guide Full List');
+			$block['content'] = kued_program_guide_list_content($delta);
+      break;
+    // Guide View (old grid style)
+    case 'kued_program_guide_kued_box':
+      $block['subject'] = t('What\'s On - KUED');
+			$block['content'] = kued_program_guide_box_content($delta);
+      break;
+    case 'kued_program_guide_world_box':
+      $block['subject'] = t('What\'s On - The World');
+			$block['content'] = kued_program_guide_box_content($delta);
+      break;
+    case 'kued_program_guide_kids247_box':
+      $block['subject'] = t('What\'s On - KUED Kids 24/7');
+			$block['content'] = kued_program_guide_box_content($delta);
+      break;
+    case 'kued_program_guide_create_box':
+      $block['subject'] = t('What\'s On - Create');
+			$block['content'] = kued_program_guide_box_content($delta);
+      break;
+
+    // Primetime
+    case 'kued_program_guide_menu_kued':
+      $block['subject'] = t('What\'s On - Tonight in Primetime - KUED');
+			$block['content'] = kued_program_guide_menu_prime_content($delta);
+      break;
+    case 'kued_program_guide_menu_world':
+      $block['subject'] = t('What\'s On - Tonight in Primetime - The World');
+			$block['content'] = kued_program_guide_menu_prime_content($delta);
+      break;
+    case 'kued_program_guide_menu_kids247':
+      $block['subject'] = t('What\'s On - Tonight in Primetime - KUED Kids 24/7');
+			$block['content'] = kued_program_guide_menu_prime_content($delta);
+      break;
+    case 'kued_program_guide_menu_create':
+      $block['subject'] = t('What\'s On - Tonight in Primetime - Create');
+			$block['content'] = kued_program_guide_menu_prime_content($delta);
+      break;
+
+    // Primetime (card)
+    case 'kued_program_guide_card_kued':
+      $block['subject'] = '' . t('Tonight in Primetime - KUED') . '';
+			$block['content'] = kued_program_guide_menu_prime_content($delta);
+      //dpm($block);
+      
+      break;
+    case 'kued_program_guide_card_world':
+      $block['subject'] = t('Tonight in Primetime - The World');
+			$block['content'] = kued_program_guide_menu_prime_content($delta);
+      break;
+    case 'kued_program_guide_card_kids247':
+      $block['subject'] = t('Tonight in Primetime - KUED Kids 24/7');
+			$block['content'] = kued_program_guide_menu_prime_content($delta);
+      break;
+    case 'kued_program_guide_card_create':
+      $block['subject'] = t('Tonight in Primetime - Create');
+			$block['content'] = kued_program_guide_menu_prime_content($delta);
+      break;
+
+
+    // Big Box Schedule
+    case 'kued_program_guide_big_box':
+      $block['subject'] = t('Program Guide Big Box');
+			$block['content'] = kued_program_guide_big_box($delta);
+      break;
+
+
+    // On Now (list)
+    case 'kued_program_guide_now_kued':
+      $block['subject'] = t('On Now - KUED');
+			$block['content'] = kued_program_guide_box_content($delta);
+      break;
+    case 'kued_program_guide_now_world':
+      $block['subject'] = t('On Now - The World');
+			$block['content'] = kued_program_guide_box_content($delta);
+      break;
+    case 'kued_program_guide_now_kids247':
+      $block['subject'] = t('On Now - KUED Kids 24/7');
+			$block['content'] = kued_program_guide_box_content($delta);
+      break;
+    case 'kued_program_guide_now_create':
+      $block['subject'] = t('On Now - Create');
+			$block['content'] = kued_program_guide_box_content($delta);
+      break;
+
+    // Called 'kids', this taps into kids programming on KUED, not kids 24/7
+    // Full list of 24/7 shows for kid's page
+    case 'kued_program_guide_kids247_full':
+      $block['subject'] = t('Kids 24/7 Full Schedule');
+			$block['content'] = kued_program_guide_kids_content($delta);
+      break;
+    case 'kued_program_guide_kids247_now':
+      $block['subject'] = t('KUED Kids 24/7 - On Now');
+			$block['content'] = kued_program_guide_kids_content($delta);
+      break;
+    // Main channel Kids programming - focus on ranges of hours
+    case 'kued_program_guide_kids_now':
+      $block['subject'] = t('KUED Kids - On Now');
+			$block['content'] = kued_program_guide_kids_content($delta);
+      break;
+    case 'kued_program_guide_kids_full':
+      $block['subject'] = t('KUED Kids Full Schedule');
+			$block['content'] = kued_program_guide_kids_content($delta);
+      break;
+    case 'kued_program_guide_kids_saturday':
+      $block['subject'] = t('KUED Kids Saturday Schedule');
+			$block['content'] = kued_program_guide_kids_content($delta);
+      break;
+    case 'kued_program_guide_kids_sunday':
+      $block['subject'] = t('KUED Kids Sunday Schedule');
+			$block['content'] = kued_program_guide_kids_content($delta);
+      break;
+
+    // Boxes to highlight only KUED's upcoming local productions
+    case 'kued_program_guide_local':
+      $block['subject'] = t('Upcoming Local Productions');
+			$block['content'] = kued_program_guide_local_upcoming($delta);
+      break;
+    case 'kued_program_guide_local_full':
+      $block['subject'] = t('Upcoming Local Productions - Full List');
+			$block['content'] = kued_program_guide_local_upcoming($delta);
+      break;
+  }
+  return $block;
+}
+
+
+/**
+ * Private fucnction to build the upcoming local productions block
+ */
+function kued_program_guide_local_upcoming($delta) {
+
+  // Get local productions list, then check against airlist
+	$query = db_select('field_data_field_kued_production', 'f')
+		->fields ('f', array('entity_id'))
+		->condition('field_kued_production_value', 1);
+    $result = $query->execute();
+    $collection = array();
+
+  $i=1;
+  while($record = $result->fetchAssoc()) {
+    $query_pid = db_select('field_data_field_program_id', 'f')
+      ->fields ('f', array('field_program_id_value'))
+      ->condition('entity_id', $record['entity_id']);
+    $pid = $query_pid->execute()->fetchField();
+    
+    if(strlen($pid)) {
+      $collection[$i]['nid'] = $record['entity_id'];
+      $collection[$i]['program_id'] = $pid;
+    }
+  $i++;   
+  }
+
+  // Prepare the date search parameters
+  $items = array();
+  $dates = array();
+  $limit = 5; // Total number of airdates to show
+  $date_limit_days = 90; // Limit the search to 90 days
+  $date_limit_seconds = $date_limit_days * 86400;
+  $date_limit = $date_limit_seconds + REQUEST_TIME;
+  $start_time = date('Y-m-d H:i:s', REQUEST_TIME);//WHERE (fulldate BETWEEN '':start_time'' AND '':end_time'') 
+  $end_time = date('Y-m-d H:i:s', $date_limit);
+
+  foreach($collection as $show) {
+    // This select grabs just the next x number of days
+    $result = db_query("SELECT fulldate AS airdate, channel FROM protrack_airlist WHERE (fulldate BETWEEN '':start_time'' AND '':end_time'') AND program_id = :pid ORDER BY channel, fulldate", array(':start_time' => $start_time, ':end_time' => $end_time, ':pid' => $show['program_id']))->fetchAllKeyed();
+    foreach($result as $date => $channel) {
+      if($result) {
+        $date = strtotime($date);
+        $date_organizer[$date][][$channel] = $show['nid'];
+      }
+    }
+  }
+
+  // Now sort the collected data
+  ksort($date_organizer);
+  // If this is the limited display then we want to only
+  // show a small number of airdates.
+  // They're removed from the bottom of the sorted array.
+  if($delta == 'kued_program_guide_local') {
+    $date_organizer = array_slice($date_organizer, 0, $limit, TRUE);
+  }
+
+
+  // And reorganize it so the order is chronological
+  foreach($date_organizer as $date => $entry) {
+    foreach($entry[0] as $channel => $nid) {
+      $dates[$nid][][$channel] = format_date($date, 'long');
+    }
+  }
+
+  // Send the items to the template
+  $items['#prefix'] = '<div id="whatson-guide-upcoming-shows" class="whatson-guide-upcoming-shows">';
+  $items['#suffix'] = '</div>';
+  $entity_view = 'tiny_tease';
+
+  // This method outputs EVERYTHING from the 'dates' array
+  foreach($dates as $nid => $airdates) {
+    if($nid !== 40028) {
+      $node = node_load($nid, $tid = NULL, $reset = TRUE);
+      $items['nodes'][$nid] = node_view($node, $entity_view); // This is where we show the custom content view for program guide items
+      $items['nodes'][$nid]['airdates'] = $airdates;
+
+      // Reminder Linking
+      $program_id = $node->field_program_id['und'][0]['value'];
+      $reminder = 'Reminder';
+      $reminder_long = 'Schedule a reminder';
+      $reminder_link = '/reminder/' . $node->nid . '/' . $program_id;
+      // Javascript popup link:
+      $popup_link = 'onclick=\'window.open("' . $reminder_link . '","pagename","menubar=no,toolbar=no,width=500,height=650,scrollbars=yes,location=0,top=20,left=20");\'';
+      $popup_name = 'name=\'' . $node->nid . '-' . $program_id . '\'';
+      $reminder_link = 'javascript:void(0)';
+      $reminder_link_future = '<a ' . $popup_name . ' ' . $popup_link . ' href=\'' . $reminder_link . '\' title="' . $reminder . ' for ' . $node->title .'" class="reminder reminder-link reminder-link-future">' . $reminder_long . ' <span>for ' . $node->title .'</span></a>';
+      $reminder_link_future_icon_text = '<div class="reminder-icon episode-reminder episode-reminder-text"><a ' . $popup_name . ' ' . $popup_link . ' href=\'' . $reminder_link . '\' title="' . $reminder . ' for ' . $node->title .'" class="reminder reminder-link reminder-link-text reminder-link-future"> ' . $reminder . '</a></div>';
+      $items['nodes'][$nid]['#reminder'] = $reminder_link_future_icon_text;
+
+      /*
+      dpm($node->title);
+      drupal_set_message('---------------------------------------------');
+      foreach($airdates as $data) {
+        $channel_title = key($data);
+        $date = $data[$channel];
+        drupal_set_message(t('@channel | @date', array('@date' => $date, '@channel' => $channel))); 
+            $content['airdates'][$channel_title]['class'] = $class;
+            $date = strtotime($date);
+            $content['airdates'][$channel_title][] = format_date($date, 'long');
+      }
+      drupal_set_message('---------------------------------------------');
+      drupal_set_message('---------------------------------------------');
+      */
+    }
+  }
+
+  // Now build the list of nodes
+  if(isset($items)) {
+    return theme('kued_program_guide_upcoming', array('content' => $items));
+  }
+}
+
+
+/**
+ * Private fucnction to build the big front-page schedule block
+ */
+function kued_program_guide_big_box($delta) {
+
+  // Our default container array
+  $items = array();
+
+  // No need to call the defaults, we're doing tonight at 7pm
+	$extra_time = 0;
+	$hours = 5; // Note that we're grabbing five hours of episodes here!
+	$start_time = strtotime("today 7pm");
+
+	$duration = $hours * 3600;
+	$end_time = $start_time + $duration;
+	$start_time_extra = $start_time - $extra_time;
+	$end_time_extra = $end_time + $extra_time;
+
+
+  // No need to call the defaults, we're doing right now
+	$now_extra_time = 7200;
+	$now_hours = 3; // Note that we're grabbing three hours of episodes here!
+	$now_start_time = REQUEST_TIME;
+  //$now_start_time = '1504047599';//1504047599
+
+	$now_duration = $now_hours * 3600;
+	$now_end_time = $now_start_time + $now_duration;
+	$now_start_time_extra = $now_start_time - $now_extra_time;
+	$now_end_time_extra = $now_end_time + $now_extra_time;
+
+
+  // First build the menu links.
+  ///example: whatson/guide/all-stations/2015-10-14/4.30pm/3
+  $items['tonight'] = date('Y-m-d\/', $start_time);
+  $items['tomorrow'] = date('Y-m-d\/', strtotime('tomorrow'));
+  $items['sunday'] = date('Y-m-d\/', strtotime('sunday'));
+  
+  $items['path_kued'] = '/whatson/list/kued/';
+  $items['path_world'] = '/whatson/list/world/';
+  $items['path_kids247'] = '/whatson/list/kids24-7/';
+  $items['path_kids'] = '/kids/schedule';
+  $items['path_create'] = '/whatson/list/create/';
+  
+  $items['path_tonight'] = $items['path_kued'] . $items['tonight'] . '#primetime';
+  $items['path_tomorrow'] = $items['path_kued'] . $items['tomorrow'] . '#primetime';
+  $items['path_sunday'] = $items['path_kued'] . $items['sunday'] . '#primetime';
+  /*
+  $tonight = date('Y-m-d\/g.ia\/', $start_time);
+  $tomorrow = date('Y-m-d\/g.ia\/', strtotime('tomorrow') + 68400);
+  $sunday = date('Y-m-d\/g.ia\/', strtotime('sunday') + 68400);
+  $range = '3';
+  $path_tonight = $path . $tonight . $range;
+  $path_tomorrow = $path . $tomorrow . $range;
+  $path_sunday = $path . $sunday . $range;
+  
+  dpm($items['path_kued']);
+  dpm($items['path_world']);
+  dpm($items['path_kids247']);
+  dpm($items['path_kids']);
+  dpm($items['path_tonight']);
+  dpm($items['path_tomorrow']);
+  dpm($items['path_sunday']);
+  */
+
+
+  // First generate the list of programs using the standard method
+  // We're going all the way to midnight so that we ensure that we'll get
+  // three programs to fill up the page.
+  // If we don't I'm still accounting for that in the template.
+  // I added an extra filter type (6) so that we could switch out a default image
+  // if both the series and episode are blank.  It's a hack but it should be fine.
+  // If no image comes up at all it will roll back to nothing.
+  //$items['kued'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 6);
+
+  // Let's cache this stuff once an hour
+  $data_kued = &drupal_static(__FUNCTION__);
+  if (!isset($data_kued)) {
+    if ($cache = cache_get('kued_program_guide_kued_big_box')) {
+      $items = $cache->data;
+    } else {
+      $items['kued'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 6);
+      cache_set('kued_program_guide_kued_big_box', $items, 'cache', REQUEST_TIME + 3600);
+    }
+  }
+
+  // Don't cache this data, needs to be live.
+  $data['kued_now'] = kued_program_guide_display('kued', $now_start_time, $now_end_time, $now_start_time_extra, $now_end_time_extra, 3);
+
+  // Lets format all the interesting information for the nice little
+  // what's on now, and what's on next box.
+  $i = 0;
+  $next = 0;
+  $upcoming = 0;
+  $remaining = 0;
+  //dpm($data['kued_now']);
+  foreach($data['kued_now'] as $key => $item) {
+   if(is_numeric($key)) {
+     if($next == 0) {
+        $remaining = $item['#node']->show_end - REQUEST_TIME;
+        $items['now'] = $data['kued_now'][$i]['#node'];
+        $items['now_episode_title'] = $item['#node']->title;
+        $items['now_series_title'] = $item['#node']->field_series_link['und']['0']['entity']->title;
+        $items['now_path'] = drupal_get_path_alias('node/' . $item['#node']->nid);
+        $next = 1;
+      }
+      if($next == 1) {
+        $upcoming = $item['#node']->show_start - REQUEST_TIME;
+        $items['next'] = $data['kued_now'][$i]['#node'];
+        $items['next_episode_title'] = $item['#node']->title;
+        $items['next_series_title'] = $item['#node']->field_series_link['und']['0']['entity']->title;
+        $items['next_path'] = drupal_get_path_alias('node/' . $item['#node']->nid);
+        $items['next_start'] = '(begins at ' . date('g:ia',$item['#node']->show_start) . ')';
+      }
+    $i++;
+   }
+  }
+  // Build some titles
+  if(!empty($items['now_series_title'])) {
+    $items['now_title'] = '<span class="now-episode-title">' . $items['now_series_title'] . '</span>';
+  } else {
+    $items['now_title'] = '';
+  }
+  if(!empty($items['next_series_title'])) {
+    $items['next_title'] = '<span class="next-episode-title">' . $items['next_series_title'] . '</span>';
+  } else {
+    $items['next_title'] = '';
+  }
+
+/*
+  // Keep this around because I'm a code horder
+  $now_title_search = strchr($items['now_episode_title'], $items['now_series_title']);
+  if(!isset($now_title_search)) {
+    $items['now_title'] = '<span class="now-series-title">' . $items['now_series_title'] . '</span>: <span class="now-episode-title">' . $items['now_episode_title'] . '</span>';
+  } else {
+    $items['now_title'] = '<span class="now-series-title">' . $items['now_series_title'] . '</span>';
+  }
+  // Build the next titles
+  $next_title_search = strchr($items['next_episode_title'], $items['next_series_title']);
+  dpm($next_title_search);
+  if(!isset($next_title_search)) {
+    $items['next_title'] = '<span class="next-series-title">' . $items['next_series_title'] . '</span>: <span class="next-episode-title">' . $items['next_episode_title'] . '</span>';
+  } else {
+    $items['next_title'] = '<span class="next-series-title">' . $items['next_series_title'] . '</span>';
+  }
+*/
+
+  // I Don't think I want the episode titles to be shown here. It only really works
+  // For a few series, most of them look like crap.
+  // Build the now titles
+
+  // Break down the amount of time remaning from seconds.
+  $remaining_hours = floor($remaining / 3600);
+  $remaining_minutes = $remaining / 60 % 60;
+
+  // Currently in progress titles
+  if($remaining_hours == 1) {
+    $hours_title = 'hour';
+  } else {
+    $hours_title = 'hours'; 
+  }
+  if($remaining_minutes == '1') {
+    $minutes_title = 'minute';
+  } else {
+    $minutes_title = 'minutes'; 
+  }
+  if($remaining_hours >= 1 && $remaining_minutes == 0) {
+    $items['remaining'] = '(' . $remaining_hours . ' ' . $hours_title . ' remaining)';
+  } elseif($remaining_hours >= 1 && $remaining_minutes > 0) {
+    $items['remaining'] = '(' . $remaining_hours . ' ' . $hours_title . ' '  . $remaining_minutes . ' ' . $minutes_title . ' remaining)';
+  } elseif($remaining_hours == 0 && $remaining_minutes > 0) {
+    $items['remaining'] = '(' . $remaining_minutes . ' ' . $minutes_title .  ' remaining)';
+  } elseif($remaining_hours == 0 && $remaining_minutes == 0) {
+    $items['remaining'] = '(less than a minute remaining)';
+  }
+  
+  // Upcoming show titles
+  $upcoming_hours = floor($upcoming / 3600);
+  $upcoming_minutes = $upcoming / 60 % 60;
+  
+  if($upcoming_hours == 1) {
+    $upcoming_hours_title = 'hour';
+  } else {
+    $upcoming_hours_title = 'hours'; 
+  }
+  if($upcoming_minutes == 1) {
+    $upcoming_minutes_title = 'minute';
+  } else {
+    $upcoming_minutes_title = 'minutes'; 
+  }
+  if($upcoming_hours >= 1 && $upcoming_minutes == 0) {
+    $items['upcoming'] = $upcoming_hours . ' ' . $upcoming_hours_title . ' remaining.';
+  } elseif($upcoming_hours >= 1 && $upcoming_minutes > 0) {
+    $items['upcoming'] = 'Starting in ' . $upcoming_hours . ' ' . $upcoming_hours_title . ' '  . $upcoming_minutes . ' ' . $upcoming_minutes_title;
+  } elseif($upcoming_hours == 0 && $remaining_minutes > 0) {
+    $items['upcoming'] = 'Starting in ' . $upcoming_minutes . ' ' . $upcoming_minutes_title;
+  } elseif($upcoming_hours == 0 && $upcoming_minutes == 0) {
+    $items['upcoming'] = 'Begins in less than a minute.';
+  }
+
+  // Now we need to filter out the extras.
+  // First create a temporary array.
+  // Second unset the current list of items since I'm going to rebuild it.
+  $kued_array = $items['kued'];
+  unset($items['kued']); // I'm going to just kill this now
+
+  // Now we need to limit our input and keep the html seperated
+  // from the objects we've just grabbed.
+  $i = 0;
+  foreach($kued_array as $key =>$item) {
+    // This part collects the html portion
+    if(!is_numeric($key)) {
+      $items['kued'][$key] = $item;
+    }
+    // This part collects three episode objects
+    if(is_numeric($key) && $i <= 4) {
+      $items['kued'][$key] = $item;
+    }
+    $i++;
+  }
+  // Send it back to the big block template
+  $theme = theme('kued_program_guide_big_block_theme', array('content' => $items,));
+  return $theme;
+}
+
+/**
+ * Private fucnction to build the primetime schedule blocks
+ */
+function kued_program_guide_menu_prime_content($delta) {
+  // No need to call the defaults, we're doing tonight at 7pm
+	$extra_time = 0;
+	$hours = 3;
+	$start_time = strtotime("today 7pm");
+			
+	$duration = $hours * 3600;
+	$end_time = $start_time + $duration;
+	$start_time_extra = $start_time - $extra_time;
+	$end_time_extra = $end_time + $extra_time;
+
+	switch ($delta) {
+    // These are the menu displays - short content results
+		case 'kued_program_guide_menu_kued';
+			// KUED Cache
+			$data_kued = &drupal_static(__FUNCTION__);			
+			if (!isset($data_kued)) {
+				if ($cache = cache_get('kued_program_guide_prime_kued')) {
+					$data['kued'] = $cache->data;
+					return $data;
+				} else {
+					$data['kued'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 2);
+					cache_set('kued_program_guide_prime_kued', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+			}
+		break;
+		case 'kued_program_guide_menu_world':
+			// World Cache
+			$world_data = &drupal_static(__FUNCTION__);
+			if (!isset($world_data)) {
+				if ($cache = cache_get('kued_program_guide_prime_world')) {
+					$data['world'] = $cache->data;
+					return $data;
+				} else {
+					$data['world'] = kued_program_guide_display('world', $start_time, $end_time, $start_time_extra, $end_time_extra, 2);
+					cache_set('kued_program_guide_prime_world', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+			}
+		break;
+		case 'kued_program_guide_menu_kids247':
+			// Kids 24/7 Cache
+			$kids_data = &drupal_static(__FUNCTION__);
+			if (!isset($kids_data)) {
+				if ($cache = cache_get('kued_program_guide_prime_kids247')) {
+					$data['kids'] = $cache->data;
+					return $data;
+				} else {
+					$data['kids'] = kued_program_guide_display('kids', $start_time, $end_time, $start_time_extra, $end_time_extra, 2);
+					cache_set('kued_program_guide_prime_kids247', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+			}
+		break;
+
+		case 'kued_program_guide_menu_create':
+			// Create Cache
+			$create_data = &drupal_static(__FUNCTION__);
+			if (!isset($create_data)) {
+				if ($cache = cache_get('kued_program_guide_prime_create')) {
+					$data['create'] = $cache->data;
+					return $data;
+				} else {
+					$data['create'] = kued_program_guide_display('create', $start_time, $end_time, $start_time_extra, $end_time_extra, 2);
+					cache_set('kued_program_guide_prime_create', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+			}
+		break;
+
+    // Here is the display for the cards per station
+		case 'kued_program_guide_card_kued';
+
+			// KUED Cache
+			$data_kued = &drupal_static(__FUNCTION__);
+			if (!isset($data_kued)) {
+				if ($cache = cache_get('kued_program_guide_kued_prime_card')) {
+					$data['kued'] = $cache->data;
+					return $data;
+				} else {
+					$data['kued'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 6);
+					cache_set('kued_program_guide_kued_prime_card', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+			}
+		break;
+		case 'kued_program_guide_card_world':
+			// World Cache
+			$world_data = &drupal_static(__FUNCTION__);
+			if (!isset($world_data)) {
+				if ($cache = cache_get('kued_program_guide_world_prime_card')) {
+					$data['world'] = $cache->data;
+					return $data;
+				} else {
+					$data['world'] = kued_program_guide_display('world', $start_time, $end_time, $start_time_extra, $end_time_extra, 6);
+					cache_set('kued_program_guide_world_prime_card', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+			}
+		break;
+		case 'kued_program_guide_card_kids247':
+			// Kids 24/7 Cache
+			$kids_data = &drupal_static(__FUNCTION__);
+			if (!isset($kids_data)) {
+				if ($cache = cache_get('kued_program_guide_kids247_prime_card')) {
+					$data['kids'] = $cache->data;
+					return $data;
+				} else {
+					$data['kids'] = kued_program_guide_display('kids', $start_time, $end_time, $start_time_extra, $end_time_extra, 6);
+					cache_set('kued_program_guide_kids247_prime_card', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+	    }
+		break;
+		case 'kued_program_guide_card_create':
+			// Create Cache
+			$create_data = &drupal_static(__FUNCTION__);
+			if (!isset($create_data)) {
+				if ($cache = cache_get('kued_program_guide_create_prime_card')) {
+					$data['create'] = $cache->data;
+					return $data;
+				} else {
+					$data['create'] = kued_program_guide_display('create', $start_time, $end_time, $start_time_extra, $end_time_extra, 6);
+					cache_set('kued_program_guide_create_prime_card', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+	    }
+		break;
+  }
+}
+
+/**
+ * This function displays the full list of content for the entire day
+ */
+function kued_program_guide_list_content($delta) {
+  // Get the defaults
+  $guide_form_defaults = kued_program_guide_default();
+   // Get the date
+  if(!arg(3)) {
+    $day = $guide_form_defaults['date'];
+  } else {
+    $day = arg(3);
+  }
+   // Get the station
+  if(!arg(2)) {
+    $station = 'kued';
+  } else {
+    $station = arg(2);
+  }
+  // Set the remaining defaults
+  $time = '12.00am';
+	$hours = 24;
+  $extra_time = $guide_form_defaults['extra_time'];
+
+	//Format the start and end times
+	$start_time = strtotime("$day " . "$time");
+	$duration = $hours * 3600;
+	$end_time = $start_time + $duration;
+	$start_time_extra = $start_time - $extra_time;
+	$end_time_extra = $end_time + $extra_time;
+
+  //$data['list'] = kued_program_guide_display($station, $start_time, $end_time, $start_time_extra, $end_time_extra, 5);
+  //return $data;
+
+  // KUED Cache
+  $data_list = &drupal_static(__FUNCTION__);			
+	if (!isset($data_list)) {
+		if ($cache = cache_get('kued_program_guide_list_content_'.$station.'_'.$day)) {
+			$data['list'] = $cache->data;
+			return $data;
+		} else {
+			$data['list'] = kued_program_guide_display($station, $start_time, $end_time, $start_time_extra, $end_time_extra, 5);
+			cache_set('kued_program_guide_list_content_'.$station.'_'.$day, $data, 'cache', REQUEST_TIME + 604800);
+			return $data;
+		}
+	}
+}
+
+
+/**
+ * This function displays up to the minute (current) data from the airlist in blocks
+ */
+function kued_program_guide_box_content($delta) {
+	//Get defaults if needed
+	$guide_form_defaults = kued_program_guide_default();
+		$time = $guide_form_defaults['time'];
+		$day = $guide_form_defaults['date'];
+		$hours = (int)$guide_form_defaults['duration'];
+		$station = $guide_form_defaults['station'];
+
+	$extra_time = 0;
+
+	$start_time = strtotime("$day " . "$time");
+  // Tweak the Duration for the display type - we're not using the defaults from the previous function.
+  if($delta == 'kued_program_guide_now_kued' || $delta == 'kued_program_guide_now_world' || $delta == 'kued_program_guide_now_kids247' || $delta == 'kued_program_guide_now_create') {
+	  $duration = 1 * 3600;
+  } else {
+	  $duration = 3 * 3600;
+  }
+
+	$end_time = $start_time + $duration;
+	$start_time_extra = $start_time - $extra_time;
+	$end_time_extra = $end_time + $extra_time;
+
+	switch ($delta) {
+		case 'kued_program_guide_kued_box';
+      // KUED Cache
+			$data_kued = &drupal_static(__FUNCTION__);			
+			if (!isset($data_kued)) {
+				if ($cache = cache_get('kued_program_guide_box_kued')) {
+					$data['kued'] = $cache->data;
+					return $data;
+				} else {
+					$data['kued'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 1);
+					cache_set('kued_program_guide_box_kued', $data, 'cache', REQUEST_TIME + 900);
+					return $data;
+				}
+			}  
+		break;
+		case 'kued_program_guide_world_box':
+			// World Cache
+			$world_data = &drupal_static(__FUNCTION__);
+			if (!isset($world_data)) {
+				if ($cache = cache_get('kued_program_guide_box_world')) {
+					$data['world'] = $cache->data;
+					return $data;
+				} else {
+					$data['world'] = kued_program_guide_display('world', $start_time, $end_time, $start_time_extra, $end_time_extra, 1);
+					cache_set('kued_program_guide_box_world', $data, 'cache', REQUEST_TIME + 900);
+					return $data;
+				}
+			}
+		break;
+		case 'kued_program_guide_kids247_box':
+			// KUED Kids 24/7 Cache
+			$kids_data = &drupal_static(__FUNCTION__);
+			if (!isset($kids_data)) {
+				if ($cache = cache_get('kued_program_guide_box_kids247')) {
+					$data['kids'] = $cache->data;
+					return $data;
+				} else {
+					$data['kids'] = kued_program_guide_display('kids', $start_time, $end_time, $start_time_extra, $end_time_extra, 1);
+					cache_set('kued_program_guide_box_kids247', $data, 'cache', REQUEST_TIME + 900);
+					return $data;
+				}
+			}
+		break;
+		case 'kued_program_guide_create_box':
+			// Create Cache
+			$create_data = &drupal_static(__FUNCTION__);
+			if (!isset($create_data)) {
+				if ($cache = cache_get('kued_program_guide_box_create')) {
+					$data['create'] = $cache->data;
+					return $data;
+				} else {
+					$data['create'] = kued_program_guide_display('create', $start_time, $end_time, $start_time_extra, $end_time_extra, 1);
+					cache_set('kued_program_guide_box_create', $data, 'cache', REQUEST_TIME + 900);
+					return $data;
+				}
+			}
+		break;
+
+		case 'kued_program_guide_now_kued';
+			// KUED now card Cache
+			$data_kued = &drupal_static(__FUNCTION__);
+			if (!isset($data_kued)) {
+				if ($cache = cache_get('kued_program_guide_kued_now_card')) {
+					$data['kued'] = $cache->data;
+					return $data;
+				} else {
+					$data['kued'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 6);
+					cache_set('kued_program_guide_kued_now_card', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+			}
+		break;
+		case 'kued_program_guide_now_world':
+			// World Cache
+			$world_data = &drupal_static(__FUNCTION__);
+			if (!isset($world_data)) {
+				if ($cache = cache_get('kued_program_guide_world_now_card')) {
+					$data['world'] = $cache->data;
+					return $data;
+				} else {
+					$data['world'] = kued_program_guide_display('world', $start_time, $end_time, $start_time_extra, $end_time_extra, 6);
+					cache_set('kued_program_guide_world_now_card', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+			}
+		break;
+		case 'kued_program_guide_now_kids247':
+			// Kids 24/7 Cache
+			$kids_data = &drupal_static(__FUNCTION__);
+			if (!isset($kids_data)) {
+				if ($cache = cache_get('kued_program_guide_kids247_now_card')) {
+					$data['kids'] = $cache->data;
+					return $data;
+				} else {
+					$data['kids'] = kued_program_guide_display('kids', $start_time, $end_time, $start_time_extra, $end_time_extra, 6);
+					cache_set('kued_program_guide_kids247_now_card', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+	   }
+		break;
+		case 'kued_program_guide_now_create':
+			// Create Cache
+			$create_data = &drupal_static(__FUNCTION__);
+			if (!isset($create_data)) {
+				if ($cache = cache_get('kued_program_guide_create_now_card')) {
+					$data['create'] = $cache->data;
+					return $data;
+				} else {
+					$data['create'] = kued_program_guide_display('create', $start_time, $end_time, $start_time_extra, $end_time_extra, 6);
+					cache_set('kued_program_guide_create_now_card', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+	   }
+		break;
+  }
+}
+
+
+/**
+ * This function displays up to the minute KIDS (current) data from the airlist in blocks
+ * This refers to kids content on KUED, not Kids 24/7
+ */
+function kued_program_guide_kids_content($delta) {
+  // This switch will turn errors off and on
+  $errors = 0;
+
+	// Get defaults if needed
+	$guide_form_defaults = kued_program_guide_default();
+  	$time = $guide_form_defaults['time'];
+		$day = $guide_form_defaults['date'];
+		$hours = (int)$guide_form_defaults['duration'];
+		$station = $guide_form_defaults['station'];
+
+  // If you need to fake the date and time
+  // You can do that right here...
+  // Otherwise they're gathered from the usual default guide time function
+  //$time = '5.00am';
+  //$day = '2015-07-06';
+
+  // What time is now?
+  $now = strtotime($time . ' ' . $day);
+  // These are the start and end times for
+  // kids programing on KUED
+  $weekday_start = '5:59:59am';
+  $weekday_end = '5:30pm';
+  $saturday_start = '5:59:59am';
+  $saturday_end = '8am';
+  $sunday_start = '6:59:59am';
+  $sunday_end = '11am';
+  
+  // Time checker
+  $check_time = strtotime($time . ' ' . $day);
+
+  // Annnnnddddd here we go!
+	switch ($delta) {
+		case 'kued_program_guide_kids247_now':
+      // Get defaults, this one is easy since we don't care
+      // what day of the week it is.
+      // Ths is for the new added kids channel.
+      $duration_hours = 1;
+      $duration = $duration_hours * 3600;
+      $extra_time = 0;
+      $start_time = $now;
+      $end_time = $start_time + $duration;
+      $start_time_extra = $start_time - $extra_time;
+      $end_time_extra = $end_time + $extra_time;
+      
+      $data['kids_now'] = kued_program_guide_display('kids', $start_time, $end_time, $start_time_extra, $end_time_extra, 3);
+    return $data;
+		case 'kued_program_guide_kids_now':
+      /*
+      if($errors==1){
+        dpm('------------');
+        dpm(date('l jS \of F Y h:i:s A', $check_time)); 
+        dpm('------------');
+      }
+      */
+      // This figures out which day of the week it is
+      // And sets the hours to that are safe to display
+      $today = date('w', $check_time);
+      // This will be ever unchanging...it's when the night becomes day
+      $evening_end = strtotime($day . ' 11:59:59pm');
+      $morning_start = strtotime($day . ' 12:00:01am');
+      $duration_hours = 1;
+    
+      // Check to see what day of the week it is
+      // then act accordingly for start/end times
+      if($today == '6') {
+        if($errors==1){dpm('It\'s Saturday!');}
+        $evening_start = strtotime($day . ' ' . $saturday_end);
+        $morning_end = strtotime($day . ' ' . $saturday_start);
+        //$duration_hours = 2;
+      } elseif($today == '0'){
+        if($errors==1){dpm('It\'s Sunday.');}
+        $evening_start = strtotime($day . ' ' . $sunday_end);
+        $morning_end = strtotime($day . ' ' . $sunday_start);
+      } else {
+        if($errors==1){dpm('It\'s a Weekday...');}
+        $evening_start = strtotime($day . ' ' . $weekday_end);
+        $morning_end = strtotime($day . ' ' . $weekday_start);
+      }
+    
+      // Date checker
+      /*
+     if($errors==1){
+        dpm(date('l jS \of F Y h:i:s A', $evening_start));
+        dpm(date('l jS \of F Y h:i:s A', $evening_end));
+        
+        dpm(date('l jS \of F Y h:i:s A', $morning_start));
+        dpm(date('l jS \of F Y h:i:s A', $morning_end));
+      }
+      */
+    
+      // Duration is calculated here for this display
+      // We need the duration in order to determine the time range
+      // of our search
+      $duration = $duration_hours * 3600;
+      
+      // We don't want to show beyond the kid's schedule
+      // So limit the duration of the search
+      if(($duration + $now) > $evening_start) {
+        /*
+        if($errors==1){
+          dpm('something wrong');
+          dpm($now);
+          dpm($duration + $now);
+          dpm(date('l jS \of F Y h:i:s A', $duration + $now));
+          dpm($evening_start);
+          dpm(date('l jS \of F Y h:i:s A', $evening_start));
+        }
+        */
+        if($evening_start - $now > 0) {
+          $duration = $evening_start - $now;
+        }
+      }
+      //dpm(date('l jS \of F Y h:i:s A', $now + $duration));
+      
+      // This handles whether the schedule shows or not
+      // And which day of the week it is displaying
+      // Schedule has yet to start for today...
+      if(($check_time >= $morning_start) && ($check_time <= $morning_end)) {
+        if($errors==1){dpm('Yet to Start: show today\'s schedule start');}
+        
+        if($today == '6') {
+          if($errors==1){dpm('show saturday times');}
+          $day = date('Y-m-d', strtotime('saturday'));
+          $time = $saturday_start;
+        } elseif($today == '0'){
+          if($errors==1){dpm('show sunday times');}
+          $day = date('Y-m-d', strtotime('sunday'));
+          $time = $sunday_start;
+        } else {
+          if($errors==1){dpm('show weekday times');}
+          $day = date('Y-m-d', strtotime('today'));
+          $time = $weekday_start;
+        }
+      // Schedule for today is over. Show tomorrow's items
+      } elseif(($check_time >= $evening_start) && ($check_time <= $evening_end)) {
+        if($errors==1){dpm('Already Over: show tomorrow\'s schedule start');}
+     
+        if($today == '5') {
+          if($errors==1){dpm('show saturday times');}
+          $day = date('Y-m-d', strtotime('saturday'));
+          $time = $saturday_start;
+        } elseif($today == '6') {
+          if($errors==1){dpm('show sunday times');}
+          $day = date('Y-m-d', strtotime('sunday'));
+          $time = $sunday_start;
+        } else {
+          if($errors==1){dpm('show weekday times');}
+          $day = date('Y-m-d', strtotime('tomorrow'));
+          $time = $weekday_start;
+        }
+      // Everything looks fine, show today's data
+      }/* else {
+        if($errors==1){dpm('show current time');}
+        
+        if($today == '6') {
+          if($errors==1){dpm('show saturday times');}
+        } elseif($today == '0'){
+          if($errors==1){dpm('show sunday times');}
+        } else {
+          if($errors==1){dpm('show weekday times');}
+        }
+      }*/
+    
+      // Now we actually display the data
+      $extra_time = 0;
+      $start_time = strtotime($day . ' ' . $time);
+      $end_time = $start_time + $duration;
+      $start_time_extra = $start_time - $extra_time;
+      $end_time_extra = $end_time + $extra_time;
+      /*
+      if($errors==1){
+        dpm($duration);
+        dpm('------------');
+        dpm(date('l jS \of F Y h:i:s A', $start_time));
+        dpm(date('l jS \of F Y h:i:s A', $end_time));
+      }
+      */
+      $data['kids_now'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 3);
+    return $data;
+/*
+			// KUED Kids what's on now cache
+			$kids_data = &drupal_static(__FUNCTION__);
+			if (!isset($kids_data)) {
+				if ($cache = cache_get('kued_program_guide_kids_now')) {
+					$data['kued'] = $cache->data;
+					return $data;
+				} else {
+					$data['kued'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 3);
+					cache_set('kued_program_guide_kids_now', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+	   }
+*/
+		break;
+		case 'kued_program_guide_kids_full':
+      // This display shows the entire weekday schedule
+      $extra_time = 0;
+      $start_time = strtotime('today ' . $weekday_start);
+      $end_time = strtotime('today ' . $weekday_end);
+      $duration = 11.5 * 3600;
+      $end_time = $start_time + $duration;
+      $start_time_extra = $start_time - $extra_time;
+      $end_time_extra = $end_time + $extra_time;
+
+      //$data['kids_all'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 4);
+      //return $data;
+
+			// KUED Kids Cache
+			$kids_data = &drupal_static(__FUNCTION__);
+			if (!isset($kids_data)) {
+				if ($cache = cache_get('kued_program_guide_kids_full')) {
+					$data['kued'] = $cache->data;
+					return $data;
+				} else {
+					$data['kued'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 4);
+					cache_set('kued_program_guide_kids_full', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+	   }
+
+		break;
+		case 'kued_program_guide_kids_saturday':
+      // This display shows the entire kid's Saturday schedule
+      $extra_time = 0;
+      $start_time = strtotime('saturday ' . $saturday_start);
+      $end_time = strtotime('saturday ' . $saturday_end);
+      $duration = 2 * 3600;
+      $end_time = $start_time + $duration;
+      $start_time_extra = $start_time - $extra_time;
+      $end_time_extra = $end_time + $extra_time;
+
+      //$data['kids_saturday'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 4);
+      //return $data;
+
+			// KUED Kids Cache
+			$kids_data = &drupal_static(__FUNCTION__);
+			if (!isset($kids_data)) {
+				if ($cache = cache_get('kued_program_guide_kids_saturday')) {
+					$data['kued'] = $cache->data;
+					return $data;
+				} else {
+					$data['kued'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 4);
+					cache_set('kued_program_guide_kids_saturday', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+	   }
+
+		break;
+		case 'kued_program_guide_kids_sunday':
+      // And this display shows the entire sunday schedule.
+      $extra_time = 0;
+      $start_time = strtotime('sunday ' . $sunday_start);
+      $end_time = strtotime('sunday ' . $sunday_end);
+      $duration = 4 * 3600;
+      $end_time = $start_time + $duration;
+      $start_time_extra = $start_time - $extra_time;
+      $end_time_extra = $end_time + $extra_time;
+
+      //$data['kids_sunday'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 4);
+      //return $data;
+
+			// KUED Kids Cache
+			$kids_data = &drupal_static(__FUNCTION__);
+			if (!isset($kids_data)) {
+				if ($cache = cache_get('kued_program_guide_kids_sunday')) {
+					$data['kued'] = $cache->data;
+					return $data;
+				} else {
+					$data['kued'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 4);
+					cache_set('kued_program_guide_kids_sunday', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+	   }
+
+		case 'kued_program_guide_kids247_full':
+      // This display shows the entire weekday schedule
+      $extra_time = 0;
+      $start_time = strtotime('today ' . $weekday_start);
+      $end_time = strtotime('today ' . $weekday_end);
+      $duration = 24 * 3600;
+      $end_time = $start_time + $duration;
+      $start_time_extra = $start_time - $extra_time;
+      $end_time_extra = $end_time + $extra_time;
+
+      //$data['kids_all'] = kued_program_guide_display('kued', $start_time, $end_time, $start_time_extra, $end_time_extra, 4);
+      //return $data;
+
+			// KUED Kids Cache
+			$kids247_data = &drupal_static(__FUNCTION__);
+			if (!isset($kids247_data)) {
+				if ($cache = cache_get('kued_program_guide_kids247_full')) {
+					$data['kids247'] = $cache->data;
+					return $data;
+				} else {
+					$data['kids247'] = kued_program_guide_display('kids', $start_time, $end_time, $start_time_extra, $end_time_extra, 4);
+					cache_set('kued_program_guide_kids247_full', $data, 'cache', REQUEST_TIME + 10800);
+					return $data;
+				}
+	   }
+
+		break;
+    }
+	//}
+}
+
+
+
+
+
+/////////////////////////////////////////////////////
+// Original Horizontal display style for the guide //
+/////////////////////////////////////////////////////
+/**
+ * Function to select and display the Program Guide Content
+ * This is where the big content display is built
+ */
+function kued_program_guide_display($station, $start_time, $end_time, $start_time_extra, $end_time_extra, $version) {
+
+	$items = array();
+
+	// This switch will create the box and select the display style for either the what's on guide page or the what's on box.
+	switch ($version) {
+    case 0:
+			$items['#prefix'] = '<div id="whatson-guide-shows-' . $station . '" class="whatson-guide-shows-' . $station . '">';
+			$items['#suffix'] = '</div>';
+			$entity_view = 'kued_program_guide_list';
+		break;
+    case 1:
+			$watch_online_button = t('View Full Schedule');
+			$items['#prefix'] = '<div id="whatson-guide-box-' . $station . '" class="whatson-guide-box-' . $station . '">';
+			$items['#suffix'] = '</div><div class="box-footer box-footer-' . $station . '">
+<div class="button"><a href="/whatson/guide" class="button" title="' . $watch_online_button . '">' . $watch_online_button . '</a></div>
+</div>';
+			$entity_view = 'kued_program_guide_box';
+    break;
+    case 2:
+			$items['#prefix'] = '<div id="whatson-guide-menu-' . $station . '" class="whatson-guide-menu-' . $station . '">';
+			$items['#suffix'] = '</div>';
+			$entity_view = 'kued_program_guide_menu';
+		break;
+    case 3:
+    case 6:
+			$items['#prefix'] = '<div id="whatson-guide-card-' . $station . '" class="whatson-guide-card-' . $station . '">';
+			$items['#suffix'] = '</div>';
+			$entity_view = 'kued_program_guide_card';
+		break;
+    case 4:
+			$items['#prefix'] = '<div id="whatson-guide-series-featured-' . $station . '" class="whatson-guide-series-featured-' . $station . '">';
+			$items['#suffix'] = '</div>';
+			$entity_view = 'series_featured';
+		break;
+    case 5:
+			$items['#prefix'] = '<div id="whatson-guide-list-' . $station . '" class="whatson-guide-list-' . $station . '">';
+			$items['#suffix'] = '</div>';
+			$entity_view = 'kued_program_guide_vertical_list';
+		break;
+	}
+
+  // This is the big query to select all the items we'll show here.
+	$start_time_extra = date('Y-m-d H:i:s', $start_time_extra);
+	$end_time_extra = date('Y-m-d H:i:s', $end_time_extra);
+	$station_search = kued_program_guide_station_filter($station);
+
+/*
+			drupal_set_message(t('programs start time extra: %v', array('%v' => $start_time_extra)));
+			drupal_set_message(t('programs end time extra: %v', array('%v' => $end_time_extra)));
+			drupal_set_message(t('programs start time: %v', array('%v' => $start_time)));
+			drupal_set_message(t('programs end time: %v', array('%v' => $end_time)));
+*/
+/*
+	$query = "SELECT DISTINCT a.fulldate AS show_start, '' AS show_end, '' AS item_number, '' AS length, a.fulldate AS fulldate, a.series_id, a.program_id, a.version_id, a.rebroadcast, a.channel, s.entity_id AS series_nid, p.entity_id AS program_nid
+		FROM {protrack_airlist} AS a
+		LEFT JOIN field_data_field_series_id AS s ON a.series_id = s.field_series_id_value
+		LEFT JOIN field_data_field_program_id AS p ON a.program_id = p.field_program_id_value
+		WHERE (fulldate BETWEEN '':start_time'' AND '':end_time'') AND channel = :station ORDER BY fulldate ASC";
+*/
+
+	$query = "SELECT DISTINCT a.fulldate AS show_start, '' AS show_end, '' AS item_number, l.field_episode_length_value AS length, a.fulldate AS fulldate, a.series_id, a.program_id, a.version_id, a.rebroadcast, a.channel, s.entity_id AS series_nid, p.entity_id AS program_nid
+		FROM {protrack_airlist} AS a
+		LEFT JOIN field_data_field_series_id AS s ON a.series_id = s.field_series_id_value
+		LEFT JOIN field_data_field_program_id AS p ON a.program_id = p.field_program_id_value
+		LEFT JOIN field_data_field_episode_length AS l ON p.entity_id = l.entity_id
+		WHERE (fulldate BETWEEN '':start_time'' AND '':end_time'') AND channel = :station ORDER BY fulldate ASC";
+  //dpm('start_time: ' . $start_time_extra . ' | end_time: ' . $end_time_extra . ' | station: ' . $station_search);
+
+	// Limiting items that we're looking for.
+	$query_array = array(':start_time' => $start_time_extra, ':end_time' => $end_time_extra, ':station' => $station_search);
+
+	// This strange collection of stuff is where I find the start and stop time for the nodes to display.  This way I'll hve more control over final display.
+	$z = 0;
+	$x = 1;
+	$y = 0;
+
+	// Execute the query and build the search loop
+	$result = db_query($query, $query_array);
+	while($row = $result->fetchAssoc()) {
+    $row['show_start'] = strtotime($row['show_start']);
+    $row['fulldate'] = strtotime($row['fulldate']);
+
+//dpm($row);
+
+/*
+		// Get the length to filter results
+		//$query = "SELECT field_episode_length_value FROM {field_data_field_episode_length} WHERE entity_id = :nid";
+		$query = db_select('field_data_field_episode_length')
+			->fields('field_data_field_episode_length', array('field_episode_length_value'))
+			->condition('entity_id', $row['program_nid'])
+			->execute();
+		// The start / end time / length for the selected airlist entry
+		$length = db_query($query)->fetchField();
+*/
+
+		$row['length'] = kued_program_guide_length_seconds($row['length']);
+		$show_start = intval($row['fulldate']);
+		$show_end = $show_start + $row['length'];
+    $show_end = intval($show_end);
+
+    if($version == 3) {
+      if($show_start <= REQUEST_TIME && $show_end >= REQUEST_TIME && $z == 0) {
+          $collection[$z] = $row;
+          $collection[$z]['length'] = $row['length'];
+          $z++;
+      } elseif($z == 1) {
+        $collection[$z] = $row;
+        $collection[$z]['length'] = $row['length'];
+        $z++;
+      }
+    } else {
+      // Filter the results // only open the nodes in our desired time-frame
+      if($show_end > $start_time && $show_start < $end_time) {
+        $collection[$z] = $row;
+        $collection[$z]['length'] = $row['length'];
+        $z++;
+      }
+    }
+	}
+
+	// Set the end time as the next show's start time
+	while($x < $z) {
+		$collection_offset[$x-1]['show_end'] = $collection[$x]['show_start'];
+		$x++;
+	}
+	$collection_offset[$x-1]['show_end'] = $end_time; // Set the end time of the last item as the end time of the time-span (end_time)
+
+	// Check to see if the Collection exists, if so build the display items.
+	if(isset($collection)) {
+		// Merge the array data so we get one nice clean array from which to load our nodes
+		foreach($collection as $key) {
+			$collection[$y]['show_end'] = $collection_offset[$y]['show_end'];
+			$collection[$y]['item_number'] = $y;
+			$y++;
+		}
+/*
+		// Now I'll use the Collection variable to open my nodes and prepare them for prerender.
+    if (user_access('administer site configuration')) {
+      dpm($collection);
+    }
+*/
+    // We need to test to see if the first episode in primetime has been flagged.
+    if($version == 5) {
+      $prime_test = 0;
+      $date_verfiy = date('z', $start_time);
+      $now_test = 0;
+      $now_verify = date('H', REQUEST_TIME);
+    }
+		// Now open the node and build the item list!
+		foreach($collection as $key) {
+/*
+			// Get the record from the Airlist
+			//$airlist_query = "SELECT * FROM {protrack_airlist} WHERE unix_timestamp(fulldate) = :fulldate AND program_id = :program_id";
+			//$airlist_query_array = array(':program_id' => $key['program_id'],':fulldate' => $key['show_start']);
+			$airlist_query = db_select('protrack_airlist')
+				->fields('protrack_airlist', array('fulldate','series_id','program_id','version_id','rebroadcast', 'channel'))
+				->condition('program_id', $key['program_id'])
+				->condition('fulldate', $key['show_start'], '=')
+				->orderBy('fulldate')
+				->execute();
+
+			//Check to see if this series_id already exists, get the entity_id
+			//$airlist_result = db_query($airlist_query, $airlist_query_array);
+			$airlist_result = db_query($airlist_query);
+			$airlist_record = $airlist_result->fetchAssoc();
+*/
+
+			// Open the node
+			if($key['program_nid'] != '') {
+				$node = node_load($nid = $key['program_nid'], $vid = NULL, $reset = TRUE);
+        //dpm($node);
+          // Going to swap the episode image for the series image if it exists
+          if($version == 3 || $version == 5 || $version == 6) {
+            //dpm('type check');
+            if(empty($node->field_episode_header_image)) {
+              //dpm('empty header image');
+              if(isset($node->field_series_link['und'][0]['target_id'])) {
+                //dpm('series check');
+                //dpm($node->field_series_link);
+                $node = kued_program_guide_image_switch($node, $node->field_series_link['und'][0]['target_id'], $version);
+              }
+            }
+          }
+
+          // Vertical Program Guide Navigation Stuff
+          if($version == 5) {
+            // Second part of the prime test
+            $date_check = date('z', $key['show_start']);
+            $now_check = date('H', $key['show_start']);
+            if($date_check == $date_verfiy && $prime_test == 0 && $now_check >= 19) {
+              $node->is_prime = 1;
+              $prime_test = 1;
+            } else {
+              $node->is_prime = 0;
+            }
+            // Second part of the now test
+            if($date_check == $date_verfiy && $now_test == 0 && $now_verify == $now_check) {
+              $node->is_now = 1;
+              $now_test = 1;
+            } else {
+             $node->is_now = 0;
+            }
+          }
+
+					// Add key items to the node object for preprocessing
+					//$node->rebroadcast = $airlist_record['rebroadcast'];
+					//$node->fulldate_timestamp = $key['show_start'];
+					$node->item_number = $key['item_number'];
+					$node->start_time = $start_time;
+					$node->end_time = $end_time;
+					$node->show_start = $key['show_start'];
+					$node->show_end = $key['show_end'];
+					//drupal_set_message('<pre>'.print_r($node, TRUE).'</pre>');
+				  $items[] = node_view($node, $entity_view); // This is where we show the custom content view for program guide items
+		  	}
+		  }
+
+		// Now build the list of nodes
+		if(isset($items)) {
+			return $items;
+		}
+	}
+}
+
+/**
+ * Private function to insert series images where episode imagess are missing.
+ *
+ */
+function kued_program_guide_image_switch($node, $series, $version = '') {
+/*
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', 'series')
+    ->entityCondition('entity_id', $series, '=')
+    ->propertyCondition('status', 1)
+    //->fieldCondition('field_episode_header_image', 'alt', 'NULL', '!=')
+    ->fieldCondition('field_episode_header_image', 'fid', '', 'IS NOT NULL')
+    ->range(0, 1)
+    ->addMetaData('account', user_load(1));
+  $result = $query->execute();
+
+  if (isset($result['node'])) {
+    $series_nid = array_keys($result['node']);
+    $series_nid = $series_nid[0];
+    $series_object = array($series_nid => (object)array('nid' => $series_nid, 'vid' => NULL, 'type' => 'series'));
+    $field_id = 63;
+    field_attach_load('node', $series_object, FIELD_LOAD_CURRENT, array('field_id' => $field_id));
+
+    if(!empty($series_object[$series_nid]->field_episode_header_image)) {
+      $node->field_episode_header_image = $series_object[$series_nid]->field_episode_header_image;
+    }
+  //$series_node = node_load($nid = $series_nid, $vid = NULL, $reset = TRUE);
+  $series_node = node_load('node', $series_nid[0]);
+  if(!empty($series_node->field_episode_header_image)) {
+    //$node->field_episode_header_image = $series_node->field_episode_header_image;
+  }
+*/
+
+    $series_object = array($series => (object)array('nid' => $series, 'vid' => NULL, 'type' => 'series'));
+    field_attach_load('node', $series_object, FIELD_LOAD_CURRENT, array('field_id' => 63));
+    if(!empty($series_object[$series]->field_episode_header_image)) {
+      $node->field_episode_header_image = $series_object[$series]->field_episode_header_image;
+    }
+    // This fixes broken images on the home page schedule display only.
+    if($version == 6 && empty($node->field_episode_header_image)) {
+      // Since I'm hacking this solution I need to check to see if we're on RC or Prod.
+      if($GLOBALS['base_url'] == 'http://www.rc.kued.org') {
+        $fid = '31124';
+      } else {
+        $fid = '37080';
+      }
+      // In case someone deletes the file we'll skip all this crap and return nothing.
+      if(isset($fid)) {
+        $file = file_load($fid);
+        $node->field_episode_header_image[LANGUAGE_NONE][0] = json_decode(json_encode($file), true); // Fancy mojo to convert from an object to an array
+      }
+    }
+  return $node;
+}
+
+/**
+ * Implements hook_entity_info_alter().
+ *
+ * This enables a custom display just for the program guide
+ *
+ */
+function kued_program_guide_entity_info_alter(&$entity_info) {
+  $entity_info['node']['view modes']['kued_program_guide_list'] = array(
+    'label' => t('Program Guide List'),
+    'custom settings' => TRUE,
+  );
+  $entity_info['node']['view modes']['kued_program_guide_vertical_list'] = array(
+    'label' => t('Program Guide Vertical List'),
+    'custom settings' => TRUE,
+  );
+  $entity_info['node']['view modes']['kued_program_guide_box'] = array(
+    'label' => t('Program Guide Box'),
+    'custom settings' => TRUE,
+  );
+  $entity_info['node']['view modes']['kued_program_guide_menu'] = array(
+    'label' => t('Program Guide Menu'),
+    'custom settings' => TRUE,
+  );
+  $entity_info['node']['view modes']['kued_program_guide_card'] = array(
+    'label' => t('Program Guide Card'),
+    'custom settings' => TRUE,
+  );
+}
+
+/**
+* Implements hook_preprocess().
+*/
+function kued_program_guide_preprocess(&$variables, $hook) {
+  // Track run count for each hook to provide zebra striping.
+  // See "template_preprocess_block()" which provides the same feature specific to blocks.
+  $count[$hook] = isset($count[$hook]) && is_int($count[$hook]) ? $count[$hook] : 1;
+  $variables['zebra_hook'][$hook] = ($count[$hook] % 2) ? 'odd' : 'even';
+  $variables['id_hook'][$hook] = $count[$hook]++;
+}
+
+/**
+* Implements hook_preprocess_node()
+*/
+//function kued_program_guide_preprocess_node(&$vars, $node, $station, $day, $time, $hours) {
+function kued_program_guide_preprocess_node(&$vars) {
+	if($vars['type'] == 'series' || $vars['type'] == 'episode') {
+
+		// Suggest some themes
+		$vars['theme_hook_suggestions'][] = 'node__' . $vars['type'] . '__' . $vars['view_mode'];
+	
+		// Get the defaults or URL arguments
+		$guide_form_defaults = kued_program_guide_default();
+			$time = $guide_form_defaults['time'];
+			$day = $guide_form_defaults['date'];
+			$hours = (int)$guide_form_defaults['duration'];
+			$station = $guide_form_defaults['station'];
+			$table_width = $guide_form_defaults['table_width'];
+			$border_width = $guide_form_defaults['border_width'];
+			$full_width = $guide_form_defaults['full_width'];
+			$extra_time = $guide_form_defaults['extra_time'];
+	
+		//$vars['start_time'] = $vars['node']->start_time;
+	
+		$vars['fulldate_timestamp'] = '';
+		$vars['series_nid'] = '';
+		$vars['series_location'] = '';
+		$vars['field_episode_description'] = '';
+		$vars['field_episode_rating'] = '';
+	
+		// Prepare times
+		$vars['start_time'] = strtotime($day . ' ' . $time);
+		$vars['duration'] = $hours * 3600;
+		$vars['end_time'] = $vars['start_time'] + $vars['duration'];
+	
+		$vars['start_time_extra'] = $vars['start_time'] - $extra_time;
+		$vars['end_time_extra'] = $vars['end_time'] + $extra_time;
+	
+		if(isset($vars['node']->fulldate_timestamp)) {
+			$vars['fulldate_timestamp'] = $vars['node']->fulldate_timestamp;
+		} else {
+			$vars['fulldate_timestamp'] = '';
+		}
+
+		// Prepare Series Link:
+		if(isset($vars['node']->field_series_link['und']['0']['target_id'])) {
+			$vars['series_nid'] = $vars['node']->field_series_link['und']['0']['target_id'];
+			$vars['series_location'] = drupal_lookup_path('alias',"node/" . $vars['series_nid']);
+		} else {
+			$vars['series_nid'] = '';
+			$vars['series_location'] = '';
+		}
+		// Here we must search for the node title since the series node object is no longer available.
+		$query = db_select('node', 'n')
+			->fields ('n', array ('title'))
+			->condition('nid', intval($vars['series_nid']));
+		$vars['series_title'] = $query->execute()->fetchField();
+		/*
+		if(!isset($vars['series_title'])) {
+			$vars['series_title'] = '';
+		}
+		*/
+		if(isset($vars['series_location']) || isset($vars['series_title'])) {
+			$vars['series_link'] = '<a href="/' . $vars['series_location'] . '" title="' . $vars['series_title'] . '">' . $vars['series_title'] . '</a>';
+		} else {
+			$vars['series_link'] = '';
+		}
+
+		// Prepare Episode link:
+		$vars['episode_nid'] = $vars['nid'];
+		$vars['episode_title'] = $vars['title'];
+		$vars['episode_location'] = drupal_lookup_path('alias',"node/" . $vars['episode_nid']);
+		$vars['episode_link'] = '<a href="/' . $vars['episode_location'] . '" title="' . $vars['episode_title'] . '">' . $vars['episode_title'] . '</a>';
+
+		// Prepare the Series Alt link
+		// Shows Series name but links to the episode
+		if(isset($vars['series_location']) || isset($vars['series_title'])) {
+			$vars['series_link_alt'] = '<a href="/' . $vars['episode_location'] . '" title="' . $vars['series_title'] . ' - ' . $vars['episode_title'] . '">' . $vars['series_title'] . '</a>';
+		} else {
+			$vars['series_link_alt'] = '';
+		}
+
+		// Prepare other variables
+		if(isset($vars['node']->field_version_id['und']['0']['value'])) {
+			$vars['version_id'] = $vars['node']->field_version_id['und']['0']['value'];
+		} else {
+			$vars['version_id'] = '';
+		}
+		if(isset($vars['node']->field_program_id['und']['0']['value'])) {
+			$vars['program_id'] = $vars['node']->field_program_id['und']['0']['value'];
+		} else {
+			$vars['program_id'] = '';
+		}
+		if(isset($vars['node']->field_episode_length['und']['0']['value'])) {
+			$vars['length'] = $vars['node']->field_episode_length['und']['0']['value'];
+			$vars['length_seconds'] = kued_program_guide_length_seconds($vars['length']);
+		} else {
+			$vars['length'] = '';
+			$vars['length_seconds'] = '';
+		}
+		if(isset($vars['node']->field_episode_guide['und']['0']['value'])) {
+			$vars['guide'] = $vars['node']->field_episode_guide['und']['0']['value'];
+		} else {
+			$vars['guide'] = '';
+		}
+/*
+dpm($vars['node']->field_episode_rating['und'][0]['taxonomy_term']);
+		if(is_array($vars['node']->field_episode_rating['und']['0']['taxonomy_term']->name)) {		
+			if(isset($vars['node']->field_episode_rating['und']['0']['taxonomy_term']->name)) {
+				$vars['rating'] = $vars['node']->field_episode_rating['und']['0']['taxonomy_term']->name;
+			} else {
+				$vars['rating'] = '';
+			}
+		}
+	$vars['rating'] = '';
+*/
+		if(isset($vars['node']->field_episode_caption['und']['0']['value'])) {
+			$vars['closed_caption'] = $vars['node']->field_episode_caption['und']['0']['value'];
+				if($vars['closed_caption'] == 1) {
+				$vars['closed_caption'] = 'Yes';
+				} else {
+				$vars['closed_caption'] = '';
+				}
+		}
+		if(isset($vars['node']->field_channel['und']['0']['taxonomy_term']->name)) {
+			$vars['station'] = $vars['node']->field_channel['und']['0']['taxonomy_term']->name;
+		} else {
+			$vars['station'] = '';
+		}
+	
+		// Format the timestamp display
+		if(isset($vars['show_start'])) {
+			$fulldate_display_time = '<span class="WhatsOnTime whats-on-time">' . date('g:i', $vars['show_start']) . '</span> <span class="WhatsOnMeridiem whats-on-meridiem">' . date('A', $vars['show_start']) . '</span>';
+			if($vars['start_time'] > $vars['show_start']) {
+				$vars['fulldate_display'] = 'Began at ' . $fulldate_display_time;
+			} else {
+				$vars['fulldate_display'] = $fulldate_display_time;
+			}
+		}
+    // Some preprocessing for the 'Series Featured' display
+    if($vars['view_mode'] === 'series_featured') {
+      if(isset($vars['fulldate_display'])) {
+        $vars['fulldate_display'] = '<div class="field field-name-field-series-featured-date series-featured-date">' . $fulldate_display_time . '</div>';
+      }
+    }
+    // Some preprocessing for the 'Vertical List Program Guide' display
+    if($vars['view_mode'] === 'kued_program_guide_vertical_list') {
+      if(isset($vars['fulldate_display'])) {
+        $vars['fulldate_display'] = '<div class="field field-name-field-vertical-list-date vertical-list-date">' . $fulldate_display_time . '</div>';
+      }
+    }
+
+		// rebroadcast? or new?
+		if(isset($vars['rebroadcast'])) {
+			if($vars['rebroadcast'] != 'Repeat') {
+				$vars['rebroadcast'] = 'New';
+			}
+		}
+	
+		// Now the positioning data
+		// Start position first of course
+		if(isset($vars['show_start'])) {
+			$vars['duration'] = round($vars['end_time'] - $vars['start_time']);
+			$vars['show_start_position'] = $vars['show_start'] - $vars['start_time'];
+			// fix for shows that started earlier than the display area
+			if($vars['show_start_position'] < 0) {
+				$vars['show_start_position'] = 0;
+				$vars['show_start_percent'] = 0;
+				} else {
+					if($vars['duration'] != 0) {
+						$vars['show_start_percent'] = (round($vars['show_start_position'] / $vars['duration'], 2) * 100);
+					} else {
+						$vars['show_start_percent'] = 0;
+					}
+				}
+			// End position
+			$vars['show_end_position'] = $vars['show_end'] - $vars['start_time'];
+			if($vars['show_end_position'] == 0 || $vars['duration'] == 0) {
+					$vars['show_end_percent'] = 0;
+				} else {
+					$vars['show_end_percent'] = (round($vars['show_end_position'] / $vars['duration'], 2) * 100);
+				}
+			$vars['show_width_percent'] = $vars['show_end_percent'] - $vars['show_start_percent'];
+		}
+	}
+}
+
+/**
+* Convert time to half-hour spans of time
+*/
+function kued_program_guide_format_time() {
+	//Get half-hour interval
+  $now = REQUEST_TIME;
+  $minutes_check = date('i', $now);
+  $minutes = $minutes_check - ($minutes_check % 30);
+  if($minutes == 0) {
+    $minutes = '00';
+  }
+  $time = date('g.'.$minutes.'a', $now);
+	return $time;
+}
+
+/**
+ * Build array for program guide duration - 8 hour span
+ */
+function kued_program_guide_select_duration() {
+	$duration = array();
+	$hours = 0;
+	for($i = 1; $i < 4; $i++) {
+		$hours = $hours + 1;
+		$hours_title = "Showing " . $hours . " hours";
+		$duration[$hours] = $hours_title;
+	}
+	return $duration;
+}
+
+/**
+ * Build array for program guide date range list - 7 days past, 30 days future
+ */
+function kued_program_guide_select_date() {
+	//build array of times.
+	$select_days = array();
+	$select_day = strtotime("-10 days");
+
+		for($i = 1; $i < 47; $i++) {
+			$select_day = strtotime("+ 1 day", $select_day);
+			$key = date("Y-m-d", $select_day);
+			$select_days[$key] = t(date("l, F jS", $select_day));
+		}
+	return $select_days;
+}
+
+/**
+* Build array of 1/2 hour blocks for time select
+*/
+function kued_program_guide_select_time() {
+	//Format the time data 
+	//build array of times.
+	$select_times = array();
+	$select_time = strtotime("00:00");
+
+  // Add in Midnight
+  $select_times['12.00am'] = '12:00 am';
+
+  // Now calculate the rest of the times
+	for($i = 1; $i < 48; $i++) {
+		$select_time = strtotime("+ 30 minutes", $select_time);
+		$key = date("g.ia", $select_time);
+		$select_times[$key] = t(date("g:i a", $select_time));
+	}
+	return $select_times;
+}
+
+
+/**
+* Get form/display defaults if the URL is not built yet
+*/
+function kued_program_guide_default() {
+  //	if(!strlen(arg(2)) || arg(2) == 'menu' || arg(2) == 'list' || arg(2) == 'status') { // if arg(2) == menu defeats the drupal argument that sneaks in.
+  // default stations to show
+	if(!strlen(arg(2))) { // if arg(2) == menu defeats the drupal argument that sneaks in.
+		$guide_form_defaults['station'] = 'all-stations';
+		} else {
+		$guide_form_defaults['station'] = arg(2);
+		}
+  // default date	
+	if(!strlen(arg(3))) {
+		$guide_form_defaults['date'] = date('Y-m-d', strtotime('now'));
+		} else {
+		$guide_form_defaults['date'] = arg(3);
+		}
+
+  // default time 
+	if(!strlen(arg(4))) {
+		$guide_form_defaults['time'] = kued_program_guide_format_time();
+		} else {
+		$guide_form_defaults['time'] = arg(4);
+		}
+
+  // Default duration depending on device
+	if(!strlen(arg(5))) {
+    if(module_exists('mobile_detect')) {
+      $detect = mobile_detect_get_object();
+      $is_mobile = $detect->isMobile();
+      $is_tablet = $detect->isTablet();
+      if($is_mobile == 1) {
+        $guide_form_defaults['duration'] = 1;
+      } elseif($is_tablet == 1) {
+        $guide_form_defaults['duration'] = 2;
+      } else {
+        $guide_form_defaults['duration'] = 3;
+      }
+    } else {
+      $guide_form_defaults['duration'] = 3;
+    }
+  } else {
+    $guide_form_defaults['duration'] = arg(5);
+  }
+
+	// Set the table width then remove space for the CSS added border widths...sort of cheezy but it works
+	$guide_form_defaults['extra_time'] = 7200;
+	$guide_form_defaults['table_width'] = 680;
+	$guide_form_defaults['border_width'] = (int)$guide_form_defaults['duration'] * 1;
+	$guide_form_defaults['full_width'] = $guide_form_defaults['table_width'] - $guide_form_defaults['border_width'];
+
+	return $guide_form_defaults;
+}
+
+/**
+ * Converts program length into seconds
+ */
+function kued_program_guide_length_seconds($time) {
+  $time = $time;
+  $hours = intval(substr($time, 0, -6));
+  $minutes = intval(substr($time, -5, 2));
+  $seconds = intval(substr($time, -2));
+
+  if($hours == '') {
+    $hours = 0;
+  }
+  if($minutes == '') {
+    $minutes = 0;
+  }
+  if($seconds == '') {
+    $seconds = 0;
+  }
+  $total = $hours * 3600 + $minutes * 60 + $seconds;
+
+  return $total;
+}
+
+/**
+ * Always make sure we inject the correct channel variable into the search
+ */
+function kued_program_guide_station_filter($station) {
+switch ($station) {
+	case 'kued':
+	case 'KUED':
+		$station = 'KUED-HD';
+		break;
+	case 'world':
+	case 'World':
+	case 'WORLD':
+	case 'the world':
+	case 'The World':
+		$station = 'WORLD';
+		break;
+	case 'kids ch':
+	case 'Kids Ch':
+	case 'KIDS CH':
+	case 'kids':
+  case 'kids24-7':
+	case 'KIDS':
+		$station = 'KIDS CH';
+		break;
+	case 'create':
+	case 'Create':
+	case 'CREATE':
+		$station = 'CREATE';
+		break;
+	default:
+		$station = 'KUED-HD';
+	break;
+	}
+return $station;
+}
+
+/**
+ * Format the station name display
+ */
+function kued_program_guide_station_format($station) {
+switch ($station) {
+	case 'kued':
+	case 'KUED':
+		$station = 'KUED';
+		break;
+	case 'world':
+	case 'World':
+	case 'WORLD':
+	case 'the world':
+	case 'The World':
+		$station = 'The World';
+		break;
+	case 'kids ch':
+	case 'Kids Ch':
+	case 'KIDS CH':
+	case 'kids':
+	case 'kids24-7':
+		$station = 'Kids 24/7';
+		break;
+	case 'create':
+	case 'Create':
+	case 'CREATE':
+		$station = 'Create';
+		break;
+	case 'All-Stations':
+	case 'all-stations':
+	case 'All Stations':
+	case 'all stations':
+		$station = 'All Stations';
+		break;
+	default:
+		$station = 'KUED';
+	break;
+	}
+return $station;
+}
+
+/**
+ * @} End of "kued_program_guide".
+ */

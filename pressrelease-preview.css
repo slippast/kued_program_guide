@@ -1,0 +1,129 @@
+#pressrelease-preview {
+  border:1px solid #000;
+  padding:5px;
+  overflow:hidden;
+}
+#pressrelease-preview html,
+#pressrelease-preview body,
+#pressrelease-preview div,
+#pressrelease-preview span,
+#pressrelease-preview applet,
+#pressrelease-preview object,
+#pressrelease-preview iframe,
+#pressrelease-preview h1,
+#pressrelease-preview h2,
+#pressrelease-preview h3,
+#pressrelease-preview h4,
+#pressrelease-preview h5,
+#pressrelease-preview h6,
+#pressrelease-preview p,
+#pressrelease-preview blockquote,
+#pressrelease-preview pre,
+#pressrelease-preview a,
+#pressrelease-preview abbr,
+#pressrelease-preview acronym,
+#pressrelease-preview address,
+#pressrelease-preview big,
+#pressrelease-preview cite,
+#pressrelease-preview code,
+#pressrelease-preview del,
+#pressrelease-preview dfn,
+#pressrelease-preview em,
+#pressrelease-preview img,
+#pressrelease-preview ins,
+#pressrelease-preview kbd,
+#pressrelease-preview q,
+#pressrelease-preview s,
+#pressrelease-preview samp,
+#pressrelease-preview small,
+#pressrelease-preview strike,
+#pressrelease-preview strong,
+#pressrelease-preview sub,
+#pressrelease-preview sup,
+#pressrelease-preview tt,
+#pressrelease-preview var,
+#pressrelease-preview b,
+#pressrelease-preview u,
+#pressrelease-preview i,
+#pressrelease-preview center,
+#pressrelease-preview dl,
+#pressrelease-preview dt,
+#pressrelease-preview dd,
+#pressrelease-preview ol,
+#pressrelease-preview ul,
+#pressrelease-preview li,
+#pressrelease-preview fieldset,
+#pressrelease-preview form,
+#pressrelease-preview label,
+#pressrelease-preview legend,
+#pressrelease-preview table,
+#pressrelease-preview caption,
+#pressrelease-preview tbody,
+#pressrelease-preview tfoot,
+#pressrelease-preview thead,
+#pressrelease-preview tr,
+#pressrelease-preview th,
+#pressrelease-preview td,
+#pressrelease-preview article,
+#pressrelease-preview aside,
+#pressrelease-preview canvas,
+#pressrelease-preview details,
+#pressrelease-preview embed,
+#pressrelease-preview figure,
+#pressrelease-preview figcaption,
+#pressrelease-preview footer,
+#pressrelease-preview header,
+#pressrelease-preview hgroup,
+#pressrelease-preview menu,
+#pressrelease-preview nav,
+#pressrelease-preview output,
+#pressrelease-preview ruby,
+#pressrelease-preview section,
+#pressrelease-preview summary,
+#pressrelease-preview time,
+#pressrelease-preview mark,
+#pressrelease-preview audio,
+#pressrelease-preview video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+#pressrelease-preview article,
+#pressrelease-preview aside,
+#pressrelease-preview details,
+#pressrelease-preview figcaption,
+#pressrelease-preview figure,
+#pressrelease-preview footer,
+#pressrelease-preview header,
+#pressrelease-preview hgroup,
+#pressrelease-preview menu,
+#pressrelease-preview nav,
+#pressrelease-preview section {
+	display: block;
+}
+#pressrelease-preview body {
+	line-height: 1;
+}
+#pressrelease-preview ol,
+#pressrelease-preview ul {
+	list-style: none;
+}
+#pressrelease-preview blockquote,
+#pressrelease-preview q {
+	quotes: none;
+}
+#pressrelease-preview blockquote:before,
+#pressrelease-preview blockquote:after,
+#pressrelease-preview q:before,
+#pressrelease-preview q:after {
+	content: '';
+	content: none;
+}
+#pressrelease-preview table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
