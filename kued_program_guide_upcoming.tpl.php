@@ -1,8 +1,3 @@
-<?php
-//$airdates = $content['#items']['airdates'];reminder_link_icon
-//$reminder_link =$content['#reminder'];    <article<?php print $attributes;
-?>
-
 <?php foreach($content['nodes'] as $nid => $content) {
   if(is_numeric($nid)) { ?>
 <article class="node node-episode kued-program-guide-upcoming">
@@ -48,12 +43,6 @@
   
         <?php } ?>
       <?php } ?>
-    <?php /*
-      <div class="clearfix">
-        <?php if (!empty($content['links'])): ?>
-          <nav class="links node-links clearfix"><?php print render($content['links']); ?></nav>
-        <?php endif; ?>
-    */ ?>
     </article>
   <?php } ?>
 

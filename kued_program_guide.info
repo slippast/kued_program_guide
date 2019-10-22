@@ -7,12 +7,7 @@ files[] = kued_program_guide.module
 files[] = kued_program_guide.install
 
 dependencies[] = node
-;dependencies[] = pathauto
 
-
-; Information added by drupal.org packaging script on 2011-01-12
 version = "7.x-1.0-dev"
 core = "7.x"
 project = "kued_program_guide"
-datestamp = "1294805790"
-

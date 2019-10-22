@@ -9,7 +9,5 @@
  */
 ?>
 <div class="container-inline">
-<?php
-dpm($variables);
-?>
+
 </div>
