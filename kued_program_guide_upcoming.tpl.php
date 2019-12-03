@@ -19,11 +19,11 @@
               foreach($airdate as $channel => $airdate) {
                 switch($channel) {
                   case 'KUED-HD':
-                    $channel_title = 'KUED';
+                    $channel_title = 'PBS Utah';
                     $class = 'kued';
                   break;
                   case 'WORLD':
-                    $channel_title = 'The World';
+                    $channel_title = 'World Channel';
                     $class = 'world';
                   break;
                   case 'KIDS CH':

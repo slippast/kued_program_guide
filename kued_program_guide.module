@@ -26,14 +26,14 @@ function kued_program_guide_preprocess_html(&$vars) {
          $station = ''; 
         }
         // Make The station title look pretty
-        if(!$station || $station == 'kued') {
-          $station = 'KUED Channel 7';
+        if(!$station || $station == 'kued' || $station == 'pbsutah' || $station == 'pbs-utah') {
+          $station = 'PBS Utah';
         } elseif($station == 'all-stations') {
-          $station = 'all KUED stations';
+          $station = 'All PBS Utah Stations';
         } elseif($station == 'world') {
-          $station = 'The World';
+          $station = 'World';
         } elseif($station == 'kids24-7')  {
-          $station = 'KUED Kids 24/7';
+          $station = 'PBS KIDS 24/7';
         } elseif($station == 'create')  {
           $station = 'Create';
         }
@@ -61,8 +61,8 @@ function kued_program_guide_preprocess_html(&$vars) {
         }
 
         // Build the description and keywords
-        $description = 'KUED\'s TV Schedule. Currently displaying what\'s on ' . $station . ' for ' . $date;
-        $keywords = 'KUED Channel 7, PBS, Utah, ' . $station . ' Program Guide, On-air Schedule, TV Schedule, Showing ' . $date;
+        $description = 'PBS Utah\'s TV Schedule. Currently displaying what\'s on ' . $station . ' for ' . $date;
+        $keywords = 'PBS Utah, KUED, Channel 7, PBS, Utah, ' . $station . ' Program Guide, On-air Schedule, TV Schedule, Showing ' . $date;
         // Send this data back to the html head
         $meta_description = array(
                 '#type' => 'html_tag',
@@ -306,8 +306,8 @@ function kued_program_guide_search_form($form, &$form_state) {
 		'#default_value' => $guide_form_defaults['station'],
 		'#options' => array(
 			'all-stations' => 'All Stations',
-			'kued' => 'KUED',
-			'world' => 'The World',
+			'kued' => 'PBS Utah',
+			'world' => 'World',
 			'kids24-7' => 'Kids 24/7',
 			'create' => 'Create',
 		),
@@ -362,7 +362,7 @@ function kued_program_guide_search_form_submit($form, &$form_state) {
 function kued_program_guide_theme() {
   $module_path = drupal_get_path('module', 'kued_program_guide');
   $base = array(
-    'path' => $module_path . "/theme",   
+    'path' => $module_path . "/theme",
   );
 
   $items = array(
@@ -388,6 +388,10 @@ function kued_program_guide_theme() {
     ),
     'kued_program_guide_big_block_theme' => $base + array(
     	'template' => 'kued-program-guide-big-block--block',
+    	'variables' => array('items' => NULL,),
+    ),
+    'kued_program_guide_small_block_theme' => $base + array(
+    	'template' => 'kued-program-guide-small-block--block',
     	'variables' => array('items' => NULL,),
     ),
   ); 
@@ -570,9 +574,9 @@ function kued_program_guide_inpage_items_list($station, $current_time) {
   } elseif($station == 'world') {
     $station_info = '<a href="http://worldchannel.org" target="_blank" title="' . $station_title  . ' 7.2 on Comcast 390">' . $station_title  . ' 7.2 on Comcast 390</a>';
   } elseif($station == 'kids24-7') {
-    $station_info = '<a href="/kids" target="_blank" title="KUED Kids 24/7 7.3 on Comcast 391">' . $station_title  . ' 7.3 on Comcast 391</a>';
+    $station_info = '<a href="/kids" target="_blank" title="PBS KIDS Utah 24/7 7.3 on Comcast 391">' . $station_title  . ' 7.3 on Comcast 391</a>';
   } elseif($station == 'create') {
-    $station_info = '<a href="https://createtv.com/" target="_blank" title="KUED Create 7.4 on Comcast 393">' . $station_title  . ' 7.4 on Comcast 393</a>';
+    $station_info = '<a href="https://createtv.com/" target="_blank" title="PBS Utah Create 7.4 on Comcast 393">' . $station_title  . ' 7.4 on Comcast 393</a>';
   } else {
     $station_info = '';
   }
@@ -821,15 +825,15 @@ function template_preprocess_kued_program_guide_title(&$vars) {
 	// Move items to the template
 	$vars['title_display'] = kued_program_guide_station_format($vars['element']['title']);
 	// Add extra details based on the channel to display
-	if($vars['title_display'] == 'KUED') {
+	if($vars['title_display'] == 'KUED' || $vars['title_display'] == 'PBS Utah') {
 		$vars['title_display_channel'] = '7.1';
 		$vars['title_display_extra'] = 'Comcast 7 and 658 in HD';
     $vars['title_display_link_open'] = '';
    $vars['title_display_link_close'] = '';
-	} elseif ($vars['title_display'] == 'The World') {
+	} elseif ($vars['title_display'] == 'World') {
 		$vars['title_display_channel'] = '7.2';
 		$vars['title_display_extra'] = 'Comcast 390';
-    $vars['title_display_link_open'] = '<a href="http://worldchannel.org" target="_blank" title="The World">';
+    $vars['title_display_link_open'] = '<a href="http://worldchannel.org" target="_blank" title="World Channel">';
     $vars['title_display_link_close'] = '</a>';
 	} elseif ($vars['title_display'] == 'Kids 24/7') {
 		$vars['title_display_channel'] = '7.3';
@@ -854,8 +858,8 @@ function kued_program_guide_tabs($station, $date) {
     $date = '';
   }
   $items = array(
-    'kued' => 'KUED',
-    'world' => 'The World',
+    'kued' => 'PBS Utah',
+    'world' => 'World',
     'kids24-7' => 'Kids 24/7',
     'create' => 'Create',
   );
@@ -954,15 +958,15 @@ function kued_program_guide_block_info() {
     'cache' => DRUPAL_NO_CACHE,
   );
   $blocks['kued_program_guide_kued_box'] = array(
-    'info' => t('What\'s On Now Content - KUED'),
+    'info' => t('What\'s On Now Content - PBS Utah'),
     'cache' => DRUPAL_NO_CACHE,
   );
   $blocks['kued_program_guide_world_box'] = array(
-    'info' => t('What\'s On Now Content - The World'),
+    'info' => t('What\'s On Now Content - World'),
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_kids247_box'] = array(
-    'info' => t('What\'s On Now Content - Kids 24/7'),
+    'info' => t('What\'s On Now Content - PBS KIDS 24/7'),
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_create_box'] = array(
@@ -970,15 +974,15 @@ function kued_program_guide_block_info() {
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_menu_kued'] = array(
-    'info' => t('What\'s On - Tonight in Primetime - KUED'),
+    'info' => t('What\'s On - Tonight in Primetime - PBS Utah'),
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_menu_world'] = array(
-    'info' => t('What\'s On - Tonight in Primetime - The World'),
+    'info' => t('What\'s On - Tonight in Primetime - World'),
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_menu_kids247'] = array(
-    'info' => t('What\'s On - Tonight in Primetime - Kids 24/7'),
+    'info' => t('What\'s On - Tonight in Primetime - PBS KIDS 24/7'),
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_menu_create'] = array(
@@ -986,15 +990,15 @@ function kued_program_guide_block_info() {
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_card_kued'] = array(
-    'info' => t('Card - Tonight in Primetime - KUED'),
+    'info' => t('Card - Tonight in Primetime - PBS Utah'),
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_card_world'] = array(
-    'info' => t('Card - Tonight in Primetime - The World'),
+    'info' => t('Card - Tonight in Primetime - World'),
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_card_kids247'] = array(
-    'info' => t('Card - Tonight in Primetime - Kids 24/7'),
+    'info' => t('Card - Tonight in Primetime - PBS KIDS 24/7'),
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_card_create'] = array(
@@ -1007,16 +1011,21 @@ function kued_program_guide_block_info() {
     'cache' => DRUPAL_NO_CACHE,
   );
 
+    $blocks['kued_program_guide_small_box'] = array(
+    'info' => t('Front Page Small Schedule Block'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  
   $blocks['kued_program_guide_now_kued'] = array(
-    'info' => t('Card - On Now - KUED'),
+    'info' => t('Card - On Now - PBS Utah'),
     'cache' => DRUPAL_NO_CACHE,
   );
   $blocks['kued_program_guide_now_world'] = array(
-    'info' => t('Card - On Now - The World'),
+    'info' => t('Card - On Now - World'),
     'cache' => DRUPAL_NO_CACHE,
   );
   $blocks['kued_program_guide_now_kids247'] = array(
-    'info' => t('Card - On Now - Kids 24/7'),
+    'info' => t('Card - On Now - PBS KIDS 24/7'),
     'cache' => DRUPAL_NO_CACHE,
   );
   $blocks['kued_program_guide_now_create'] = array(
@@ -1025,32 +1034,32 @@ function kued_program_guide_block_info() {
   );
 
   $blocks['kued_program_guide_kids247_full'] = array(
-    'info' => t('Kids 24/7 Schedule - Full'),
+    'info' => t('PBS KIDS Utah 24/7 Schedule - Full'),
     //'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_kids247_now'] = array(
-    'info' => t('Kids 24/7 Schedule - On Now - KUED'),
+    'info' => t('PBS KIDS Utah 24/7 Schedule - On Now - PBS Utah'),
     //'cache' => DRUPAL_NO_CACHE,
   );
   $blocks['kued_program_guide_kids_now'] = array(
-    'info' => t('Kids Schedule - On Now - KUED'),
+    'info' => t('PBS KIDS Utah Schedule - On Now - PBS Utah'),
     //'cache' => DRUPAL_NO_CACHE,
   );
   $blocks['kued_program_guide_kids_full'] = array(
-    'info' => t('Kids Schedule - Full - KUED'),
+    'info' => t('PBS KIDS Utah Schedule - Full - PBS Utah'),
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_kids_saturday'] = array(
-    'info' => t('Kids Schedule - Saturday - KUED'),
+    'info' => t('PBS KIDS Utah Schedule - Saturday - PBS Utah'),
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_kids_sunday'] = array(
-    'info' => t('Kids Schedule - Sunday - KUED'),
+    'info' => t('PBS KIDS Utah Schedule - Sunday - PBS Utah'),
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
 
   $blocks['kued_program_guide_list_view'] = array(
-    'info' => t('KUED Program Guide Full List'),
+    'info' => t('PBS Utah Program Guide Full List'),
     'cache' => DRUPAL_CACHE_CUSTOM,
   );
   $blocks['kued_program_guide_local'] = array(
@@ -1080,20 +1089,20 @@ $block = array();
     // Program Guides:::::::::::
     // Main List view (works for all channels)
     case 'kued_program_guide_list_view':
-      $block['subject'] = t('KUED Program Guide Full List');
+      $block['subject'] = t('PBS Utah Program Guide Full List');
 			$block['content'] = kued_program_guide_list_content($delta);
       break;
     // Guide View (old grid style)
     case 'kued_program_guide_kued_box':
-      $block['subject'] = t('What\'s On - KUED');
+      $block['subject'] = t('What\'s On - PBS Utah');
 			$block['content'] = kued_program_guide_box_content($delta);
       break;
     case 'kued_program_guide_world_box':
-      $block['subject'] = t('What\'s On - The World');
+      $block['subject'] = t('What\'s On - World');
 			$block['content'] = kued_program_guide_box_content($delta);
       break;
     case 'kued_program_guide_kids247_box':
-      $block['subject'] = t('What\'s On - KUED Kids 24/7');
+      $block['subject'] = t('What\'s On - PBS KIDS 24/7');
 			$block['content'] = kued_program_guide_box_content($delta);
       break;
     case 'kued_program_guide_create_box':
@@ -1103,15 +1112,15 @@ $block = array();
 
     // Primetime
     case 'kued_program_guide_menu_kued':
-      $block['subject'] = t('What\'s On - Tonight in Primetime - KUED');
+      $block['subject'] = t('What\'s On - Tonight in Primetime - PBS Utah');
 			$block['content'] = kued_program_guide_menu_prime_content($delta);
       break;
     case 'kued_program_guide_menu_world':
-      $block['subject'] = t('What\'s On - Tonight in Primetime - The World');
+      $block['subject'] = t('What\'s On - Tonight in Primetime - World');
 			$block['content'] = kued_program_guide_menu_prime_content($delta);
       break;
     case 'kued_program_guide_menu_kids247':
-      $block['subject'] = t('What\'s On - Tonight in Primetime - KUED Kids 24/7');
+      $block['subject'] = t('What\'s On - Tonight in Primetime - PBS KIDS 24/7');
 			$block['content'] = kued_program_guide_menu_prime_content($delta);
       break;
     case 'kued_program_guide_menu_create':
@@ -1121,17 +1130,17 @@ $block = array();
 
     // Primetime (card)
     case 'kued_program_guide_card_kued':
-      $block['subject'] = '' . t('Tonight in Primetime - KUED') . '';
+      $block['subject'] = '' . t('Tonight in Primetime - PBS Utah') . '';
 			$block['content'] = kued_program_guide_menu_prime_content($delta);
       //dpm($block);
       
       break;
     case 'kued_program_guide_card_world':
-      $block['subject'] = t('Tonight in Primetime - The World');
+      $block['subject'] = t('Tonight in Primetime - World');
 			$block['content'] = kued_program_guide_menu_prime_content($delta);
       break;
     case 'kued_program_guide_card_kids247':
-      $block['subject'] = t('Tonight in Primetime - KUED Kids 24/7');
+      $block['subject'] = t('Tonight in Primetime - PBS KIDS 24/7');
 			$block['content'] = kued_program_guide_menu_prime_content($delta);
       break;
     case 'kued_program_guide_card_create':
@@ -1144,18 +1153,24 @@ $block = array();
       $block['subject'] = t('Program Guide Big Box');
 			$block['content'] = kued_program_guide_big_box($delta);
       break;
+      
+    // Small Box Schedule
+    case 'kued_program_guide_small_box':
+      $block['subject'] = t('Program Guide Small Box');
+			$block['content'] = kued_program_guide_small_box($delta);
+      break;
 
     // On Now (list)
     case 'kued_program_guide_now_kued':
-      $block['subject'] = t('On Now - KUED');
+      $block['subject'] = t('On Now - PBS Utah');
 			$block['content'] = kued_program_guide_box_content($delta);
       break;
     case 'kued_program_guide_now_world':
-      $block['subject'] = t('On Now - The World');
+      $block['subject'] = t('On Now - World');
 			$block['content'] = kued_program_guide_box_content($delta);
       break;
     case 'kued_program_guide_now_kids247':
-      $block['subject'] = t('On Now - KUED Kids 24/7');
+      $block['subject'] = t('On Now - PBS KIDS 24/7');
 			$block['content'] = kued_program_guide_box_content($delta);
       break;
     case 'kued_program_guide_now_create':
@@ -1166,28 +1181,28 @@ $block = array();
     // Called 'kids', this taps into kids programming on KUED, not kids 24/7
     // Full list of 24/7 shows for kid's page
     case 'kued_program_guide_kids247_full':
-      $block['subject'] = t('Kids 24/7 Full Schedule');
+      $block['subject'] = t('PBS KIDS 24/7 Full Schedule');
 			$block['content'] = kued_program_guide_kids_content($delta);
       break;
     case 'kued_program_guide_kids247_now':
-      $block['subject'] = t('KUED Kids 24/7 - On Now');
+      $block['subject'] = t('PBS KIDS 24/7 - On Now');
 			$block['content'] = kued_program_guide_kids_content($delta);
       break;
     // Main channel Kids programming - focus on ranges of hours
     case 'kued_program_guide_kids_now':
-      $block['subject'] = t('KUED Kids - On Now');
+      $block['subject'] = t('PBS KIDS Utah - On Now');
 			$block['content'] = kued_program_guide_kids_content($delta);
       break;
     case 'kued_program_guide_kids_full':
-      $block['subject'] = t('KUED Kids Full Schedule');
+      $block['subject'] = t('PBS KIDS Utah Full Schedule');
 			$block['content'] = kued_program_guide_kids_content($delta);
       break;
     case 'kued_program_guide_kids_saturday':
-      $block['subject'] = t('KUED Kids Saturday Schedule');
+      $block['subject'] = t('PBS KIDS Utah Saturday Schedule');
 			$block['content'] = kued_program_guide_kids_content($delta);
       break;
     case 'kued_program_guide_kids_sunday':
-      $block['subject'] = t('KUED Kids Sunday Schedule');
+      $block['subject'] = t('PBS KIDS Utah Sunday Schedule');
 			$block['content'] = kued_program_guide_kids_content($delta);
       break;
 
@@ -1300,6 +1315,55 @@ function kued_program_guide_local_upcoming($delta) {
 }
 
 /**
+ * Private fucnction to build the small front-page schedule block
+ */
+function kued_program_guide_small_box($delta) {
+  // Our default container array
+  $items = array();
+  
+  // No need to call the defaults, we're doing tonight at 7pm
+	$extra_time = 0;
+	$hours = 5; // Note that we're grabbing five hours of episodes!
+	$start_time = strtotime("now");
+
+	$duration = $hours * 3600;
+	$end_time = $start_time + $duration;
+	$start_time_extra = $start_time - $extra_time;
+	$end_time_extra = $end_time + $extra_time;
+
+  // No need to call the defaults, we're doing right now
+	$now_extra_time = 7200;
+	$now_hours = 3; // Note that we're grabbing three hours of episodes here!
+	$now_start_time = REQUEST_TIME;
+
+	$now_duration = $now_hours * 3600;
+	$now_end_time = $now_start_time + $now_duration;
+	$now_start_time_extra = $now_start_time - $now_extra_time;
+	$now_end_time_extra = $now_end_time + $now_extra_time;
+
+  // Don't cache this data, needs to be live.
+  $data['kued_now'] = kued_program_guide_display('kued', $now_start_time, $now_end_time, $now_start_time_extra, $now_end_time_extra, 6);
+
+  // Lets format all the interesting information for the nice little
+  // what's on now, and what's on next box.
+  $i = 0;
+  foreach($data['kued_now'] as $key => $item) {
+    if(is_numeric($key)) {
+      if($i <= 2) {
+        $items[$i]['episode_title'] = $item['#node']->title;
+        $items[$i]['series_title'] = truncate_utf8($item['#node']->field_series_link['und']['0']['entity']->title, 20, TRUE, TRUE, 1);
+        $items[$i]['path'] = drupal_get_path_alias('node/' . $item['#node']->nid);
+        $items[$i]['start'] = date('g:ia',$item['#node']->show_start);
+        $i++;
+      }
+    }
+  }
+  // Send it back to the small block template
+  $theme = theme('kued_program_guide_small_block_theme', array('content' => $items,));
+  return $theme;
+}
+  
+/**
  * Private fucnction to build the big front-page schedule block
  */
 function kued_program_guide_big_box($delta) {
@@ -1320,7 +1384,6 @@ function kued_program_guide_big_box($delta) {
 	$now_extra_time = 7200;
 	$now_hours = 3; // Note that we're grabbing three hours of episodes here!
 	$now_start_time = REQUEST_TIME;
-  //$now_start_time = '1504047599';// Testing
 
 	$now_duration = $now_hours * 3600;
 	$now_end_time = $now_start_time + $now_duration;
@@ -2188,6 +2251,8 @@ function kued_program_guide_display($station, $start_time, $end_time, $start_tim
 		LEFT JOIN field_data_field_series_id AS s ON a.series_id = s.field_series_id_value
 		LEFT JOIN field_data_field_program_id AS p ON a.program_id = p.field_program_id_value
 		LEFT JOIN field_data_field_episode_length AS l ON p.entity_id = l.entity_id
+
+
 		WHERE (fulldate BETWEEN '':start_time'' AND '':end_time'') AND channel = :station ORDER BY fulldate ASC";
 
 	// Limiting items that we're looking for.
@@ -2320,7 +2385,7 @@ function kued_program_guide_image_switch($node, $series, $version = '') {
   // This fixes broken images on the home page schedule display only.
   if($version == 6 && empty($node->field_episode_header_image)) {
     // Since I'm hacking this solution I need to check to see if we're on RC or Prod.
-    if($GLOBALS['base_url'] == 'http://www.rc.kued.org') {
+    if($GLOBALS['base_url'] == 'http://www.rc.kued.org' || $GLOBALS['base_url'] == 'https://www.rc.kued.org' || $GLOBALS['base_url'] == 'http://www.rc.pbsutah.org' || $GLOBALS['base_url'] == 'https://www.rc.pbsutah.org') {
       $fid = '31124';
     } else {
       $fid = '37080';
@@ -2697,7 +2762,9 @@ function kued_program_guide_station_filter($station) {
 switch ($station) {
 	case 'kued':
 	case 'KUED':
-		$station = 'KUED-HD';
+	case 'pbsutah':
+	case 'pbsutah-hd':
+    $station = 'KUED-HD';
 		break;
 	case 'world':
 	case 'World':
@@ -2733,21 +2800,22 @@ function kued_program_guide_station_format($station) {
 switch ($station) {
 	case 'kued':
 	case 'KUED':
-		$station = 'KUED';
+	case 'pbsutah':
+    $station = 'PBS Utah';
 		break;
 	case 'world':
 	case 'World':
 	case 'WORLD':
 	case 'the world':
 	case 'The World':
-		$station = 'The World';
+		$station = 'World';
 		break;
 	case 'kids ch':
 	case 'Kids Ch':
 	case 'KIDS CH':
 	case 'kids':
 	case 'kids24-7':
-		$station = 'Kids 24/7';
+		$station = 'PBS KIDS 24/7';
 		break;
 	case 'create':
 	case 'Create':
@@ -2761,7 +2829,7 @@ switch ($station) {
 		$station = 'All Stations';
 		break;
 	default:
-		$station = 'KUED';
+		$station = 'PBS Utah';
 	break;
 	}
 return $station;

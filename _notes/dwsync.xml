@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <dwsync>
-<file name="kued_program_guide_upcoming.tpl.php" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="132162449098306387" remote="132162449100000000" Dst="2" />
-<file name="kued_program_guide_title.tpl.php" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="132062176590129609" remote="132062176590000000" Dst="2" />
-<file name="kued_program_guide_tabs.tpl.php" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="130940902760000000" remote="130940902760000000" Dst="2" />
-<file name="kued_program_guide_hours.tpl.php" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="131317555300000000" remote="131317555300000000" Dst="2" />
-<file name="kued_program_guide_nodes.tpl.php" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="132162449585385457" remote="132162449590000000" Dst="2" />
-<file name="kued_program_guide.tpl.php" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="132162450187516823" remote="132162450190000000" Dst="2" />
-<file name="kued_program_guide.module" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="132162456761058121" remote="132162456760000000" Dst="2" />
-<file name="kued_program_guide.install" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="132061340821402762" remote="132061340820000000" Dst="2" />
-<file name="kued_program_guide.info" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="132162457031527556" remote="132162457030000000" Dst="2" />
+<file name="kued_program_guide.module" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="132188454084512431" remote="132188454080000000" Dst="1" />
+<file name="kued_program_guide_title.tpl.php" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="132062212590000000" remote="132062212590000000" Dst="1" />
+<file name="kued_program_guide.info" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="132187543027582593" remote="132187543030000000" Dst="1" />
+<file name="kued_program_guide.tpl.php" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="132162486190000000" remote="132162486190000000" Dst="1" />
+<file name="kued_program_guide_upcoming.tpl.php" server="gateway01.uen.org//web/rc-upld/wwwkued/sites/" local="132191956612310977" remote="132191956620000000" Dst="1" />
 </dwsync>

@@ -1,6 +1,6 @@
 ; $Id:$
-name = KUED Program Guide
-description = Display module for KUED's Program Guide.
+name = PBS Utah Program Guide
+description = Display module for PBS Utah's Program Guide.
 package = KUED Modules
 core = 7.x
 files[] = kued_program_guide.module
